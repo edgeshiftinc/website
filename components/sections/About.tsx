@@ -34,8 +34,8 @@ export default function About() {
           </Reveal>
           <Reveal delay={120}>
             <h2 id="about-title" className={styles.title}>
-              AI, Cloud, DevOps,<br />
-              DBA &amp; <span className={styles.accent}>Observability</span><br />
+              AI, Cloud, DevOps, DBA &amp;{' '}
+              <span className={styles.accent}>Observability</span>{' '}
               — one platform
             </h2>
           </Reveal>
