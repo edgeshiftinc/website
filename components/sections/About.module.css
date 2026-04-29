@@ -24,6 +24,17 @@
   letter-spacing: -1.5px;
   color: var(--white);
   margin-top: 8px;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+@media (max-width: 600px) {
+  .title {
+    font-size: clamp(32px, 9vw, 44px);
+    letter-spacing: -1px;
+    line-height: 1.05;
+  }
 }
 
 .accent { color: var(--cyan); }
