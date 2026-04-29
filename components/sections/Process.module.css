@@ -53,6 +53,12 @@
   position: relative;
   z-index: 1;
   margin-bottom: 80px;
+  align-items: stretch;
+}
+
+/* Make Reveal wrapper stretch */
+.steps > * {
+  display: contents;
 }
 
 .step {
@@ -61,6 +67,9 @@
   background: var(--bg-card);
   position: relative;
   transition: background var(--transition), border-color var(--transition);
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
 }
 .step:hover {
   background: var(--bg-card-alt);
@@ -112,6 +121,7 @@
   font-size: 15px;
   color: var(--text-mid);
   line-height: 1.85;
+  flex-grow: 1;
 }
 
 /* CTA strip */
@@ -151,13 +161,24 @@
 }
 .ctaBtn:hover { background: var(--electric); transform: translateY(-2px); }
 
+@media (max-width: 1280px) {
+  .section { padding: 100px 48px; }
+}
+
 @media (max-width: 1100px) {
   .steps { grid-template-columns: repeat(2, 1fr); }
   .connector { display: none; }
+  .step { min-height: 260px; }
 }
 
 @media (max-width: 960px) {
   .section { padding: 80px 24px; }
-  .steps { grid-template-columns: 1fr; }
+  .steps { grid-template-columns: repeat(2, 1fr); }
   .cta { flex-direction: column; align-items: flex-start; gap: 24px; padding: 28px 24px; }
+}
+
+@media (max-width: 600px) {
+  .section { padding: 64px 16px; }
+  .steps { grid-template-columns: 1fr; }
+  .step { min-height: unset; }
 }
