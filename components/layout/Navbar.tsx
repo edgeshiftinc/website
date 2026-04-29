@@ -23,6 +23,12 @@ export default function Navbar() {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }, []);
 
+  // Lock body scroll when mobile menu is open
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen]);
+
   const toggleTheme = () => {
     const next = !dark;
     setDark(next);
@@ -33,7 +39,7 @@ export default function Navbar() {
   const close = () => setMenuOpen(false);
 
   return (
-    <header className={`${styles.header} ${scrolled ? styles.scrolled : ''}`}>
+    <header className={`${styles.header} ${scrolled ? styles.scrolled : ''} ${menuOpen ? styles.menuActive : ''}`}>
       <nav className={styles.nav} aria-label="Main navigation">
 
         {/* Logo */}
@@ -86,7 +92,7 @@ export default function Navbar() {
           <a href="#contact" className={styles.cta}>Get Started</a>
         </div>
 
-        {/* Hamburger */}
+        {/* Hamburger — always on top, even over mobile overlay */}
         <button
           className={`${styles.burger} ${menuOpen ? styles.open : ''}`}
           aria-label={menuOpen ? 'Close menu' : 'Open menu'}
