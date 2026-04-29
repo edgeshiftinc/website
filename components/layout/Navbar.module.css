@@ -13,11 +13,21 @@
   border-bottom-color: var(--border);
 }
 
+/* When menu is open, header gets a solid bg so it doesn't ghost over the overlay */
+.header.menuActive {
+  background: var(--bg-base);
+  border-bottom-color: var(--border);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 /* ── Nav row ─────────────────────────────────────── */
 .nav {
   display: flex; align-items: center;
   justify-content: space-between; gap: 32px;
   padding: 16px 0;
+  position: relative;
+  z-index: 101; /* sits above the mobile overlay so burger is always clickable */
 }
 
 /* ── Logo ────────────────────────────────────────── */
@@ -91,27 +101,34 @@
 .burger {
   display: none; flex-direction: column; gap: 5px;
   background: none; border: none; padding: 4px; cursor: pointer;
+  position: relative;
+  z-index: 102; /* always above nav row AND mobile overlay */
 }
 .burger span {
-  display: block; width: 22px; height: 1px;
+  display: block; width: 22px; height: 2px;
   background: var(--white);
   transition: transform .3s ease, opacity .3s ease;
 }
-.burger.open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
-.burger.open span:nth-child(2) { opacity: 0; }
-.burger.open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+.burger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.burger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.burger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
 /* ── Mobile overlay ──────────────────────────────── */
 .mobile {
-  position: fixed; inset: 0;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: var(--bg-base);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 32px;
-  z-index: 99;
+  z-index: 100; /* same as header, nav row at 101 and burger at 102 sit on top */
+  overflow-y: auto;
+  padding: 100px 24px 48px; /* top padding so content clears the navbar row */
 }
+
 .mobileLink {
-  font-family: var(--ff-display); font-size: 44px; font-weight: 700;
+  font-family: var(--ff-display); font-size: 40px; font-weight: 700;
   color: var(--white); transition: color var(--transition);
+  text-align: center;
 }
 .mobileLink:hover { color: var(--orange); }
 
