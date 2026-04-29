@@ -38,25 +38,34 @@
 .body strong { color: var(--white); font-weight: 500; }
 
 /* Mission/Vision pills */
+/* Mission/Vision pills */
 .pillRow {
   display: flex;
   flex-direction: column;
   gap: 16px;
   margin-top: 36px;
+  width: 100%;
 }
 
 .pill {
-  display: flex;
+  display: grid;
+  grid-template-columns: 32px 1fr;
   gap: 16px;
-  align-items: flex-start;
+  align-items: start;
   padding: 20px 24px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   transition: border-color var(--transition), background var(--transition);
+  width: 100%;
 }
 .pill:hover { border-color: var(--border-glow); background: var(--cyan-glow); }
 
-.pillIcon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+.pillIcon {
+  font-size: 20px;
+  line-height: 1.4;
+  flex-shrink: 0;
+  text-align: center;
+}
 
 .pill strong {
   display: block;
@@ -65,13 +74,14 @@
   font-weight: 700;
   color: var(--white);
   letter-spacing: 0.5px;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .pill p {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text-mid);
-  line-height: 1.85;
+  line-height: 1.75;
+  margin: 0;
 }
 
 /* Focus grid */
