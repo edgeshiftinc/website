@@ -36,13 +36,6 @@ export default function Navbar() {
     <header className={`${styles.header} ${scrolled ? styles.scrolled : ''}`}>
       <nav className={styles.nav} aria-label="Main navigation">
 
-        {/* Top contact bar */}
-        <div className={styles.contactBar} aria-label="Contact info">
-          <a href={`mailto:${SITE.email}`} className={styles.contactItem}>{SITE.email}</a>
-          <span className={styles.contactDivider}>|</span>
-          <a href={`tel:${SITE.phone}`} className={styles.contactItem}>{SITE.phone}</a>
-        </div>
-
         {/* Logo */}
         <a href="/" className={styles.logo} aria-label="Edgeshift Inc — Home">
           <img
@@ -52,7 +45,7 @@ export default function Navbar() {
           />
           <span className={styles.logoEdge}>Edge</span>
           <span className={styles.logoShift}>shift</span>
-          <span className={styles.logoTag}>Inc</span>
+          <span className={styles.logoTag}>&nbsp;Inc</span>
         </a>
 
         {/* Desktop links */}
@@ -124,8 +117,6 @@ export default function Navbar() {
           >
             {dark ? '☀ Light Mode' : '☾ Dark Mode'}
           </button>
-
-          <p className={styles.mobileLocation}>{SITE.email} · {SITE.phone}</p>
         </div>
       )}
     </header>
