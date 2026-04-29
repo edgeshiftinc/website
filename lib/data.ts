@@ -17,7 +17,7 @@ export const NAV_LINKS = [
   { label: 'Services',   href: '#services'    },
   { label: 'Products',   href: '#argus'       },
   { label: 'Industries', href: '#industries'  },
-  { label: 'Contact',    href: '#contact'     },
+  { label: 'Contact Us',    href: '#contact'     },
 ] as const;
 
 export const STATS = [
