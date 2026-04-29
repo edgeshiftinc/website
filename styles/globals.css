@@ -164,3 +164,20 @@ section h3 {
   opacity: 1;
   transform: translateY(0);
 }
+/* ─── Responsive section padding normalisation ───────────────────────────── */
+@media (max-width: 1280px) {
+  html { font-size: 17px; }
+}
+
+@media (max-width: 960px) {
+  html { font-size: 16px; }
+
+  section h2,
+  section h3 {
+    text-align: left;
+  }
+}
+
+@media (max-width: 600px) {
+  html { font-size: 15px; }
+}
