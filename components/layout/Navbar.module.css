@@ -43,9 +43,10 @@
   border-radius: 4px;
 }
 /* Logo uses mono font for a distinct, techy identity — separate from the bold display headings */
-.logoEdge  { font-family: var(--font-ibm), 'IBM Plex Mono', monospace; font-size: 17px; font-weight: 700; color: var(--orange); letter-spacing: 0px; }
-.logoShift { font-family: var(--font-ibm), 'IBM Plex Mono', monospace; font-size: 17px; font-weight: 400; color: var(--white); letter-spacing: 0px; }
-.logoTag   { font-family: var(--font-ibm), 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 400; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; margin-left: 7px; align-self: flex-end; padding-bottom: 1px; }
+.logoEdge  { font-family: var(--font-barlow), 'Barlow', sans-serif; font-size: 20px; font-weight: 800; color: var(--orange); letter-spacing: -0.3px; }
+.logoShift { font-family: var(--font-barlow), 'Barlow', sans-serif; font-size: 20px; font-weight: 400; color: var(--white); letter-spacing: -0.3px; }
+.logoTag   { font-family: var(--font-barlow), 'Barlow', sans-serif; font-size: 10px; font-weight: 400; color: var(--text-muted); letter-spacing: 2.5px; text-transform: uppercase; margin-left: 7px; align-self: flex-end; padding-bottom: 1px; }
+
 /* ── Desktop links ───────────────────────────────── */
 .links { display: flex; gap: 36px; align-items: center; }
 .link {
