@@ -18,23 +18,16 @@
 
 .title {
   font-family: var(--ff-display);
-  font-size: clamp(44px, 6vw, 84px);
+  font-size: clamp(36px, 4.5vw, 72px);
   font-weight: 800;
-  line-height: 0.95;
-  letter-spacing: -1.5px;
+  line-height: 1.0;
+  letter-spacing: -1px;
   color: var(--white);
   margin-top: 8px;
-  overflow-wrap: break-word;
-  word-break: break-word;
-  hyphens: auto;
-}
-
-@media (max-width: 600px) {
-  .title {
-    font-size: clamp(32px, 9vw, 44px);
-    letter-spacing: -1px;
-    line-height: 1.05;
-  }
+  /* No word-break, no hyphens — words must stay whole */
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
 }
 
 .accent { color: var(--cyan); }
@@ -177,4 +170,9 @@
   .section { padding: 64px 16px; }
   .focusGrid { grid-template-columns: 1fr; }
   .focusCard { min-height: unset; }
+  .title {
+    font-size: clamp(28px, 7vw, 40px);
+    letter-spacing: -0.5px;
+    line-height: 1.05;
+  }
 }
