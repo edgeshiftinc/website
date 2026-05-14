@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Syne, DM_Sans, JetBrains_Mono } from 'next/font/google';
+import { Syne, DM_Sans, JetBrains_Mono, Space_Grotesk, Orbitron, Rajdhani, IBM_Plex_Mono, Barlow } from 'next/font/google';
 import '@/styles/globals.css';
 import { SITE } from '@/lib/data';
 
@@ -21,6 +21,41 @@ const jetbrains = JetBrains_Mono({
   weight: ['300', '400'],
   subsets: ['latin'],
   variable: '--font-mono',
+  display: 'swap',
+});
+
+const spaceGrotesk = Space_Grotesk({
+  weight: ['400', '500', '700'],
+  subsets: ['latin'],
+  variable: '--font-space',
+  display: 'swap',
+});
+
+const orbitron = Orbitron({
+  weight: ['400', '700', '900'],
+  subsets: ['latin'],
+  variable: '--font-orbitron',
+  display: 'swap',
+});
+
+const rajdhani = Rajdhani({
+  weight: ['400', '500', '700'],
+  subsets: ['latin'],
+  variable: '--font-rajdhani',
+  display: 'swap',
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  weight: ['400', '700'],
+  subsets: ['latin'],
+  variable: '--font-ibm',
+  display: 'swap',
+});
+
+const barlow = Barlow({
+  weight: ['400', '600', '800'],
+  subsets: ['latin'],
+  variable: '--font-barlow',
   display: 'swap',
 });
 
