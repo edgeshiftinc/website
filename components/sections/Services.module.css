@@ -12,12 +12,14 @@
 
 .title {
   font-family: var(--ff-display);
-  font-size: clamp(44px, 6vw, 84px);
+  font-size: clamp(36px, 4.5vw, 72px);  /* matches About, Process, Industries */
   font-weight: 800;
-  line-height: 0.95;
-  letter-spacing: -1.5px;
+  line-height: 1.0;
+  letter-spacing: -1px;
   color: var(--white);
   margin-top: 8px;
+  word-break: normal;
+  hyphens: none;
 }
 .accent { color: var(--cyan); }
 
@@ -94,18 +96,19 @@
   font-size: 9px;
   letter-spacing: 2.5px;
   text-transform: uppercase;
-  color: var(--text-muted);
-  border: 1px solid var(--border);
+  color: var(--text-mid);            /* bumped from text-muted — visible in light mode */
+  border: 1px solid var(--border-glow);
   padding: 4px 10px;
   align-self: flex-start;
+  background: var(--cyan-dim);       /* faint orange fill — readable on white/grey bg */
 }
 
 .cardTitle {
   font-family: var(--ff-display);
-  font-size: 26px;
+  font-size: 22px;                   /* was 26px — less crushing contrast vs body text */
   font-weight: 700;
   color: var(--white);
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
   margin-bottom: 8px;
 }
 
