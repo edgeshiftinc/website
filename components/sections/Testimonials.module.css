@@ -27,13 +27,15 @@
 
 .title {
   font-family: var(--ff-display);
-  font-size: clamp(40px, 5vw, 72px);
+  font-size: clamp(36px, 4.5vw, 72px);
   font-weight: 800;
-  line-height: 1;
-  letter-spacing: -1.5px;
+  line-height: 1.0;
+  letter-spacing: -1px;
   color: var(--white);
   margin-top: 8px;
   margin-bottom: 40px;
+  word-break: normal;
+  hyphens: none;
 }
 .accent { color: var(--cyan); }
 
