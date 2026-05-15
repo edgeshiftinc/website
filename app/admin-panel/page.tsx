@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +46,8 @@ interface ProductDoc {
   enabled: boolean;
 }
 
+type EnquiryStatus = 'unread' | 'read' | 'replied' | 'review' | 'archived';
+
 interface Enquiry {
   _id: string;
   name: string;
@@ -54,6 +56,8 @@ interface Enquiry {
   service: string;
   message: string;
   createdAt: string;
+  status: EnquiryStatus;
+  notes?: string;
 }
 
 type Tab = 'services' | 'products' | 'enquiries';
@@ -78,6 +82,21 @@ const EMPTY_PRODUCT_FORM = {
   order: '99',
   enabled: true,
 };
+
+// ─── Status config ────────────────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<EnquiryStatus, { label: string; color: string; bg: string; border: string }> = {
+  unread:   { label: 'Unread',        color: '#1d4ed8', bg: '#eff6ff', border: '#bfdbfe' },
+  read:     { label: 'Read',          color: '#374151', bg: '#f3f4f6', border: '#d1d5db' },
+  replied:  { label: 'Replied',       color: '#15803d', bg: '#f0fdf4', border: '#bbf7d0' },
+  review:   { label: 'Needs Review',  color: '#b45309', bg: '#fffbeb', border: '#fde68a' },
+  archived: { label: 'Archived',      color: '#9ca3af', bg: '#f9fafb', border: '#e5e7eb' },
+};
+
+const SERVICE_OPTIONS = [
+  'dba-support', 'ai-solutions', 'devops-secops',
+  'network-security', 'service-desk', 'observability', 'other', '',
+];
 
 // ─── Root Component ───────────────────────────────────────────────────────────
 
@@ -369,18 +388,10 @@ function ProductsManager() {
   function openEdit(p: ProductDoc) {
     setEditTarget(p);
     setForm({
-      slug: p.slug,
-      eyebrow: p.eyebrow,
-      title: p.title,
-      titleAccent: p.titleAccent,
-      subtitle: p.subtitle,
-      heroLabel: p.heroCard.label,
-      heroTitle: p.heroCard.title,
-      heroBody: p.heroCard.body.join('\n\n'),
-      heroCTAText: p.heroCard.ctaText,
-      heroCTAHref: p.heroCard.ctaHref,
-      order: String(p.order),
-      enabled: p.enabled,
+      slug: p.slug, eyebrow: p.eyebrow, title: p.title, titleAccent: p.titleAccent,
+      subtitle: p.subtitle, heroLabel: p.heroCard.label, heroTitle: p.heroCard.title,
+      heroBody: p.heroCard.body.join('\n\n'), heroCTAText: p.heroCard.ctaText,
+      heroCTAHref: p.heroCard.ctaHref, order: String(p.order), enabled: p.enabled,
     });
     setFeatures(p.features.length > 0 ? [...p.features] : [{ icon: '', title: '', desc: '' }]);
     setStats(p.stats.length > 0 ? [...p.stats] : [{ value: '', label: '' }]);
@@ -394,17 +405,12 @@ function ProductsManager() {
     setSaving(true); setMsg(null);
     const payload = {
       ...(editTarget ? { id: editTarget._id } : {}),
-      slug: form.slug,
-      eyebrow: form.eyebrow,
-      title: form.title,
-      titleAccent: form.titleAccent,
+      slug: form.slug, eyebrow: form.eyebrow, title: form.title, titleAccent: form.titleAccent,
       subtitle: form.subtitle,
       heroCard: {
-        label: form.heroLabel,
-        title: form.heroTitle,
+        label: form.heroLabel, title: form.heroTitle,
         body: form.heroBody.split('\n\n').map(s => s.trim()).filter(Boolean),
-        ctaText: form.heroCTAText,
-        ctaHref: form.heroCTAHref,
+        ctaText: form.heroCTAText, ctaHref: form.heroCTAHref,
       },
       features: features.filter(f => f.title.trim()),
       stats: stats.filter(s => s.value.trim()),
@@ -442,35 +448,26 @@ function ProductsManager() {
     } catch { setMsg({ type: 'err', text: 'Network error.' }); }
   }
 
-  // Feature helpers
   function updateFeature(i: number, field: keyof ProductFeature, val: string) {
     const next = [...features]; next[i] = { ...next[i], [field]: val }; setFeatures(next);
   }
   function addFeature() { setFeatures([...features, { icon: '⭐', title: '', desc: '' }]); }
   function removeFeature(i: number) { setFeatures(features.filter((_, idx) => idx !== i)); }
 
-  // Stat helpers
   function updateStat(i: number, field: keyof ProductStat, val: string) {
     const next = [...stats]; next[i] = { ...next[i], [field]: val }; setStats(next);
   }
   function addStat() { setStats([...stats, { value: '', label: '' }]); }
   function removeStat(i: number) { setStats(stats.filter((_, idx) => idx !== i)); }
 
-  // ── Sub-views ──
-
   const isEditing = view === 'edit-basic' || view === 'edit-features' || view === 'edit-stats' || view === 'add';
-  const editingTitle = editTarget ? editTarget.title : 'New Product Section';
 
   if (isEditing) {
-    const subTabs = view === 'add'
-      ? ['add' as const]
-      : ['edit-basic', 'edit-features', 'edit-stats'] as const;
-
     return (
       <div>
         <div style={css.pageHeader}>
           <div>
-            <h1 style={css.pageTitle}>{editTarget ? `Editing: ${editingTitle}` : 'New Product Section'}</h1>
+            <h1 style={css.pageTitle}>{editTarget ? `Editing: ${editTarget.title}` : 'New Product Section'}</h1>
             <p style={css.pageSubtitle}>Fill in all three tabs, then click Save.</p>
           </div>
           <div style={css.actionGroup}>
@@ -481,7 +478,6 @@ function ProductsManager() {
 
         {msg && <div style={msg.type === 'ok' ? css.alertOk : css.alertErr}>{msg.text}</div>}
 
-        {/* Step tabs for edit mode */}
         {view !== 'add' && (
           <div style={css.stepTabs}>
             <button style={{ ...css.stepTab, ...(view === 'edit-basic' ? css.stepTabActive : {}) }} onClick={() => setView('edit-basic')}>1. Basic Info & Hero</button>
@@ -490,18 +486,14 @@ function ProductsManager() {
           </div>
         )}
 
-        {/* ── Basic Info + Hero Card ── */}
         {(view === 'edit-basic' || view === 'add') && (
           <div style={css.formCard}>
             {view === 'add' && <p style={css.sectionNote}>Fill in the details below. After saving, you can edit features and stats from the product list.</p>}
-
             <h3 style={css.subHeading}>Section Header</h3>
             <div style={css.formGrid}>
               <div style={css.formGroup}>
                 <label style={css.label}>Slug (URL identifier) *</label>
-                <input style={css.input} value={form.slug}
-                  onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
-                  placeholder="e.g. argus" required />
+                <input style={css.input} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })} placeholder="e.g. argus" required />
                 <span style={css.hint}>Lowercase, no spaces. Used as the section ID in the page (e.g. #argus).</span>
               </div>
               <div style={css.formGroup}>
@@ -522,7 +514,6 @@ function ProductsManager() {
                 <textarea style={{ ...css.input, ...css.textarea }} value={form.subtitle} onChange={(e) => setForm({ ...form, subtitle: e.target.value })} placeholder="Short description shown under the title." />
               </div>
             </div>
-
             <h3 style={{ ...css.subHeading, marginTop: 28 }}>Hero Card</h3>
             <div style={css.formGrid}>
               <div style={css.formGroup}>
@@ -532,7 +523,6 @@ function ProductsManager() {
               <div style={css.formGroup}>
                 <label style={css.label}>Hero Title</label>
                 <input style={css.input} value={form.heroTitle} onChange={(e) => setForm({ ...form, heroTitle: e.target.value })} placeholder="e.g. See everything. Miss nothing." />
-                <span style={css.hint}>Use \n for a line break in the display.</span>
               </div>
               <div style={{ ...css.formGroup, gridColumn: '1 / -1' }}>
                 <label style={css.label}>Hero Body Paragraphs</label>
@@ -548,7 +538,6 @@ function ProductsManager() {
                 <input style={css.input} value={form.heroCTAHref} onChange={(e) => setForm({ ...form, heroCTAHref: e.target.value })} placeholder="e.g. #contact or https://..." />
               </div>
             </div>
-
             <h3 style={{ ...css.subHeading, marginTop: 28 }}>Settings</h3>
             <div style={{ display: 'flex', gap: 24, alignItems: 'center' }}>
               <div style={css.formGroup}>
@@ -560,7 +549,6 @@ function ProductsManager() {
                 Visible on website
               </label>
             </div>
-
             {view === 'add' && (
               <div style={{ marginTop: 24 }}>
                 <button onClick={saveAll} disabled={saving} style={css.btnPrimary}>{saving ? 'Saving…' : 'Create Product Section'}</button>
@@ -569,13 +557,9 @@ function ProductsManager() {
           </div>
         )}
 
-        {/* ── Feature Cards ── */}
         {view === 'edit-features' && (
           <div style={css.formCard}>
-            <p style={css.sectionNote}>
-              These are the grid of feature cards shown below the hero card.
-              You can add, remove, and reorder them. Each card needs an icon (emoji), a title, and a description.
-            </p>
+            <p style={css.sectionNote}>These are the grid of feature cards shown below the hero card.</p>
             {features.map((f, i) => (
               <div key={i} style={css.repeaterRow}>
                 <div style={css.repeaterNum}>{i + 1}</div>
@@ -583,7 +567,6 @@ function ProductsManager() {
                   <div style={css.formGroup}>
                     <label style={css.label}>Icon</label>
                     <input style={{ ...css.input, textAlign: 'center', fontSize: 20 }} value={f.icon} onChange={(e) => updateFeature(i, 'icon', e.target.value)} placeholder="📡" maxLength={4} />
-                    <span style={css.hint}>Emoji</span>
                   </div>
                   <div style={css.formGroup}>
                     <label style={css.label}>Title</label>
@@ -594,33 +577,30 @@ function ProductsManager() {
                     <textarea style={{ ...css.input, ...css.textarea }} value={f.desc} onChange={(e) => updateFeature(i, 'desc', e.target.value)} placeholder="Describe this feature in 2–3 sentences." />
                   </div>
                 </div>
-                <button onClick={() => removeFeature(i)} style={css.removeBtn} title="Remove this feature">✕</button>
+                <button onClick={() => removeFeature(i)} style={css.removeBtn} title="Remove">✕</button>
               </div>
             ))}
             <button onClick={addFeature} style={css.addRowBtn}>+ Add Feature Card</button>
           </div>
         )}
 
-        {/* ── Stats Strip ── */}
         {view === 'edit-stats' && (
           <div style={css.formCard}>
-            <p style={css.sectionNote}>
-              These are the numbers shown in the stats bar at the bottom of the product section (e.g. "99.9% — Platform Uptime").
-            </p>
+            <p style={css.sectionNote}>Numbers shown in the stats bar at the bottom of the product section.</p>
             {stats.map((s, i) => (
               <div key={i} style={css.repeaterRow}>
                 <div style={css.repeaterNum}>{i + 1}</div>
                 <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div style={css.formGroup}>
                     <label style={css.label}>Value</label>
-                    <input style={css.input} value={s.value} onChange={(e) => updateStat(i, 'value', e.target.value)} placeholder="e.g. 99.9% or <1s or 24/7" />
+                    <input style={css.input} value={s.value} onChange={(e) => updateStat(i, 'value', e.target.value)} placeholder="e.g. 99.9% or <1s" />
                   </div>
                   <div style={css.formGroup}>
                     <label style={css.label}>Label</label>
                     <input style={css.input} value={s.label} onChange={(e) => updateStat(i, 'label', e.target.value)} placeholder="e.g. Platform Uptime" />
                   </div>
                 </div>
-                <button onClick={() => removeStat(i)} style={css.removeBtn} title="Remove this stat">✕</button>
+                <button onClick={() => removeStat(i)} style={css.removeBtn} title="Remove">✕</button>
               </div>
             ))}
             <button onClick={addStat} style={css.addRowBtn}>+ Add Stat</button>
@@ -630,28 +610,18 @@ function ProductsManager() {
     );
   }
 
-  // ── List view ──
   return (
     <div>
       <div style={css.pageHeader}>
         <div>
           <h1 style={css.pageTitle}>Products</h1>
-          <p style={css.pageSubtitle}>
-            Manage product sections like Argus. Each product gets its own section on the homepage with a hero card, feature grid, and stats strip.
-          </p>
+          <p style={css.pageSubtitle}>Manage product sections like Argus.</p>
         </div>
         <button onClick={openAdd} style={css.btnPrimary}>+ Add Product Section</button>
       </div>
-
       {msg && <div style={msg.type === 'ok' ? css.alertOk : css.alertErr}>{msg.text}</div>}
-
       {loading ? <p style={css.emptyMsg}>Loading…</p> : products.length === 0 ? (
-        <div style={css.emptyCard}>
-          <p style={css.emptyMsg}>No product sections in the database yet.</p>
-          <p style={{ color: '#9ca3af', fontSize: 13, margin: '8px 0 0' }}>
-            Run the seed script first to import your existing Argus section, then edit it here.
-          </p>
-        </div>
+        <div style={css.emptyCard}><p style={css.emptyMsg}>No product sections yet.</p></div>
       ) : (
         <div style={css.tableWrap}>
           <table style={css.table}>
@@ -667,10 +637,7 @@ function ProductsManager() {
             <tbody>
               {products.map((p) => (
                 <tr key={p._id} style={css.tr}>
-                  <td style={css.td}>
-                    <strong>{p.title}</strong><br />
-                    <span style={css.subText}>{p.subtitle?.slice(0, 60)}{p.subtitle?.length > 60 ? '…' : ''}</span>
-                  </td>
+                  <td style={css.td}><strong>{p.title}</strong><br /><span style={css.subText}>{p.subtitle?.slice(0, 60)}{p.subtitle?.length > 60 ? '…' : ''}</span></td>
                   <td style={css.td}><code style={css.code}>#{p.slug}</code></td>
                   <td style={css.td}>{p.features.length} cards</td>
                   <td style={css.td}>{p.stats.length} stats</td>
@@ -704,71 +671,345 @@ function EnquiriesViewer() {
   const [selected, setSelected] = useState<Enquiry | null>(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  // ── Search + filter state ──
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState<EnquiryStatus | 'all'>('all');
+  const [filterService, setFilterService] = useState<string>('all');
+
+  // ── Detail panel state ──
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [noteDraft, setNoteDraft] = useState('');
+  const [statusSaving, setStatusSaving] = useState(false);
+
+  const load = useCallback(() => {
+    setLoading(true);
     fetch('/api/admin/enquiries')
       .then((r) => r.json())
-      .then((data) => { if (data.ok) setEnquiries(data.enquiries); else setError(data.message ?? 'Failed to load.'); })
+      .then((data) => {
+        if (data.ok) setEnquiries(data.enquiries);
+        else setError(data.message ?? 'Failed to load.');
+      })
       .catch(() => setError('Network error.'))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  // ── Derived filtered list ──
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return enquiries.filter((e) => {
+      if (filterStatus !== 'all' && e.status !== filterStatus) return false;
+      if (filterService !== 'all' && e.service !== filterService) return false;
+      if (q) {
+        const haystack = `${e.name} ${e.email} ${e.phone} ${e.service} ${e.message}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [enquiries, search, filterStatus, filterService]);
+
+  // ── Status counts for the filter tabs ──
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { all: enquiries.length };
+    for (const e of enquiries) {
+      c[e.status] = (c[e.status] ?? 0) + 1;
+    }
+    return c;
+  }, [enquiries]);
+
+  // ── Unique services in the dataset for the service filter dropdown ──
+  const serviceOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const e of enquiries) if (e.service) seen.add(e.service);
+    return Array.from(seen).sort();
+  }, [enquiries]);
 
   function fmtDate(iso: string) {
     try { return new Date(iso).toLocaleString('en-CA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
     catch { return iso; }
   }
 
+  // When selecting a row, if it's unread mark it read automatically
+  async function selectEnquiry(e: Enquiry) {
+    setSelected(e);
+    setNoteDraft(e.notes ?? '');
+    setEditingNotes(false);
+    if (e.status === 'unread') {
+      await patchStatus(e._id, 'read', e.notes);
+    }
+  }
+
+  async function patchStatus(id: string, status: EnquiryStatus, notes?: string) {
+    setStatusSaving(true);
+    try {
+      const res = await fetch('/api/admin/enquiries', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status, notes }),
+      });
+      if (res.ok) {
+        // Update local state without a full reload
+        setEnquiries((prev) =>
+          prev.map((eq) => eq._id === id ? { ...eq, status, notes: notes ?? eq.notes } : eq)
+        );
+        setSelected((prev) => prev?._id === id ? { ...prev, status, notes: notes ?? prev.notes } : prev);
+      }
+    } finally {
+      setStatusSaving(false);
+    }
+  }
+
+  async function saveNotes() {
+    if (!selected) return;
+    await patchStatus(selected._id, selected.status, noteDraft);
+    setEditingNotes(false);
+  }
+
   return (
     <div>
+      {/* ── Page header ── */}
       <div style={css.pageHeader}>
         <div>
           <h1 style={css.pageTitle}>Enquiries</h1>
-          <p style={css.pageSubtitle}>All contact form submissions. Read-only.</p>
+          <p style={css.pageSubtitle}>All contact form submissions — search, filter, and manage status.</p>
         </div>
-        <span style={css.countBadge}>{enquiries.length} total</span>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span style={css.countBadge}>{enquiries.length} total</span>
+          <button onClick={load} style={css.btnSecondary} title="Refresh">↻ Refresh</button>
+        </div>
       </div>
+
       {error && <div style={css.alertErr}>{error}</div>}
-      {loading ? <p style={css.emptyMsg}>Loading…</p> : enquiries.length === 0 ? (
+
+      {/* ── Status filter tabs ── */}
+      <div style={enqCss.filterTabs}>
+        {(['all', 'unread', 'read', 'replied', 'review', 'archived'] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setFilterStatus(s)}
+            style={{
+              ...enqCss.filterTab,
+              ...(filterStatus === s ? enqCss.filterTabActive : {}),
+            }}
+          >
+            {s === 'all' ? 'All' : STATUS_CONFIG[s].label}
+            <span style={{
+              ...enqCss.filterTabCount,
+              background: filterStatus === s ? '#111' : '#f3f4f6',
+              color: filterStatus === s ? '#fff' : '#6b7280',
+            }}>
+              {counts[s] ?? 0}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Search + service filter bar ── */}
+      <div style={enqCss.searchBar}>
+        <div style={enqCss.searchWrap}>
+          <span style={enqCss.searchIcon}>🔍</span>
+          <input
+            style={enqCss.searchInput}
+            placeholder="Search by name, email, message…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} style={enqCss.clearBtn}>✕</button>
+          )}
+        </div>
+        <select
+          style={enqCss.serviceSelect}
+          value={filterService}
+          onChange={(e) => setFilterService(e.target.value)}
+        >
+          <option value="all">All services</option>
+          {serviceOptions.map((s) => (
+            <option key={s} value={s}>{s || '(no service)'}</option>
+          ))}
+        </select>
+      </div>
+
+      {loading ? (
+        <p style={css.emptyMsg}>Loading…</p>
+      ) : enquiries.length === 0 ? (
         <div style={css.emptyCard}><p style={css.emptyMsg}>No enquiries yet.</p></div>
       ) : (
-        <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={css.tableWrap}>
-              <table style={css.table}>
-                <thead><tr>
-                  <th style={css.th}>Name</th>
-                  <th style={css.th}>Email</th>
-                  <th style={css.th}>Service</th>
-                  <th style={css.th}>Date</th>
-                  <th style={css.th}></th>
-                </tr></thead>
-                <tbody>
-                  {enquiries.map((e) => (
-                    <tr key={e._id} style={{ ...css.tr, background: selected?._id === e._id ? '#f0f4ff' : undefined, cursor: 'pointer' }} onClick={() => setSelected(e)}>
-                      <td style={css.td}><strong>{e.name}</strong></td>
-                      <td style={css.td}>{e.email}</td>
-                      <td style={css.td}><span style={css.badge}>{e.service || '—'}</span></td>
-                      <td style={css.td}>{fmtDate(e.createdAt)}</td>
-                      <td style={css.td}><button style={css.btnEdit} onClick={() => setSelected(e)}>View</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+        <div style={enqCss.layout}>
+          {/* ── Table ── */}
+          <div style={enqCss.tableCol}>
+            {filtered.length === 0 ? (
+              <div style={{ ...css.emptyCard, marginTop: 0 }}>
+                <p style={css.emptyMsg}>No enquiries match your filters.</p>
+              </div>
+            ) : (
+              <div style={css.tableWrap}>
+                <table style={css.table}>
+                  <thead><tr>
+                    <th style={css.th}>Status</th>
+                    <th style={css.th}>Name</th>
+                    <th style={css.th}>Email</th>
+                    <th style={css.th}>Service</th>
+                    <th style={css.th}>Date</th>
+                  </tr></thead>
+                  <tbody>
+                    {filtered.map((e) => {
+                      const sc = STATUS_CONFIG[e.status ?? 'unread'];
+                      const isSelected = selected?._id === e._id;
+                      return (
+                        <tr
+                          key={e._id}
+                          style={{
+                            ...css.tr,
+                            background: isSelected ? '#f0f4ff' : undefined,
+                            cursor: 'pointer',
+                            fontWeight: e.status === 'unread' ? 600 : 400,
+                          }}
+                          onClick={() => selectEnquiry(e)}
+                        >
+                          <td style={css.td}>
+                            <span style={{
+                              display: 'inline-block',
+                              padding: '2px 8px',
+                              borderRadius: 12,
+                              fontSize: 11,
+                              fontWeight: 600,
+                              background: sc.bg,
+                              color: sc.color,
+                              border: `1px solid ${sc.border}`,
+                              whiteSpace: 'nowrap' as const,
+                            }}>
+                              {sc.label}
+                            </span>
+                          </td>
+                          <td style={css.td}>
+                            {e.status === 'unread' && (
+                              <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#2563eb', marginRight: 6, verticalAlign: 'middle' }} />
+                            )}
+                            {e.name}
+                          </td>
+                          <td style={css.td}><span style={css.subText}>{e.email}</span></td>
+                          <td style={css.td}><span style={css.badge}>{e.service || '—'}</span></td>
+                          <td style={css.td}><span style={css.subText}>{fmtDate(e.createdAt)}</span></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
+
+          {/* ── Detail panel ── */}
           {selected && (
-            <div style={css.detailPanel}>
-              <div style={css.detailHeader}>
-                <strong>Message Detail</strong>
+            <div style={enqCss.detailPanel}>
+              <div style={enqCss.detailHeader}>
+                <strong style={{ fontSize: 14 }}>Enquiry Detail</strong>
                 <button onClick={() => setSelected(null)} style={css.closeBtn}>✕</button>
               </div>
+
+              {/* Status changer */}
+              <div style={enqCss.statusSection}>
+                <p style={enqCss.statusLabel}>STATUS</p>
+                <div style={enqCss.statusButtons}>
+                  {(['unread', 'read', 'replied', 'review', 'archived'] as EnquiryStatus[]).map((s) => {
+                    const sc = STATUS_CONFIG[s];
+                    const isActive = selected.status === s;
+                    return (
+                      <button
+                        key={s}
+                        disabled={statusSaving}
+                        onClick={() => patchStatus(selected._id, s, selected.notes)}
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: 12,
+                          fontSize: 11,
+                          fontWeight: isActive ? 700 : 500,
+                          border: `1px solid ${isActive ? sc.color : sc.border}`,
+                          background: isActive ? sc.bg : '#fff',
+                          color: isActive ? sc.color : '#9ca3af',
+                          cursor: statusSaving ? 'not-allowed' : 'pointer',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        {sc.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Fields */}
               <dl style={css.dl}>
-                <dt style={css.dt}>Name</dt><dd style={css.dd}>{selected.name}</dd>
-                <dt style={css.dt}>Email</dt><dd style={css.dd}><a href={`mailto:${selected.email}`} style={{ color: '#2563eb' }}>{selected.email}</a></dd>
-                <dt style={css.dt}>Phone</dt><dd style={css.dd}>{selected.phone || '—'}</dd>
-                <dt style={css.dt}>Service Interest</dt><dd style={css.dd}>{selected.service || '—'}</dd>
-                <dt style={css.dt}>Received</dt><dd style={css.dd}>{fmtDate(selected.createdAt)}</dd>
-                <dt style={css.dt}>Message</dt><dd style={{ ...css.dd, whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{selected.message}</dd>
+                <dt style={css.dt}>Name</dt>
+                <dd style={css.dd}>{selected.name}</dd>
+
+                <dt style={css.dt}>Email</dt>
+                <dd style={css.dd}>
+                  <a href={`mailto:${selected.email}`} style={{ color: '#2563eb' }}>{selected.email}</a>
+                </dd>
+
+                <dt style={css.dt}>Phone</dt>
+                <dd style={css.dd}>{selected.phone || '—'}</dd>
+
+                <dt style={css.dt}>Service Interest</dt>
+                <dd style={css.dd}>{selected.service || '—'}</dd>
+
+                <dt style={css.dt}>Received</dt>
+                <dd style={css.dd}>{fmtDate(selected.createdAt)}</dd>
+
+                <dt style={css.dt}>Message</dt>
+                <dd style={{ ...css.dd, whiteSpace: 'pre-wrap', lineHeight: 1.6, marginTop: 4, padding: '10px 12px', background: '#f9fafb', borderRadius: 6, border: '1px solid #f3f4f6' }}>
+                  {selected.message}
+                </dd>
               </dl>
+
+              {/* Internal notes */}
+              <div style={enqCss.notesSection}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <p style={enqCss.statusLabel}>INTERNAL NOTES</p>
+                  {!editingNotes && (
+                    <button onClick={() => { setNoteDraft(selected.notes ?? ''); setEditingNotes(true); }} style={enqCss.editNoteBtn}>
+                      {selected.notes ? 'Edit' : '+ Add note'}
+                    </button>
+                  )}
+                </div>
+                {editingNotes ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <textarea
+                      style={{ ...css.input, minHeight: 80, resize: 'vertical', fontSize: 13 }}
+                      value={noteDraft}
+                      onChange={(e) => setNoteDraft(e.target.value)}
+                      placeholder="Add internal notes about this enquiry…"
+                      autoFocus
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={saveNotes} disabled={statusSaving} style={{ ...css.btnPrimary, fontSize: 12, padding: '6px 14px' }}>
+                        {statusSaving ? 'Saving…' : 'Save Note'}
+                      </button>
+                      <button onClick={() => setEditingNotes(false)} style={{ ...css.btnSecondary, fontSize: 12, padding: '6px 14px' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  selected.notes
+                    ? <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, whiteSpace: 'pre-wrap', margin: 0 }}>{selected.notes}</p>
+                    : <p style={{ fontSize: 13, color: '#9ca3af', fontStyle: 'italic', margin: 0 }}>No notes yet.</p>
+                )}
+              </div>
+
+              {/* Quick reply shortcut */}
+              <div style={{ marginTop: 16 }}>
+                <a
+                  href={`mailto:${selected.email}?subject=Re: Your Enquiry — Edgeshift Inc`}
+                  onClick={() => patchStatus(selected._id, 'replied', selected.notes)}
+                  style={{ ...css.btnPrimary, display: 'block', textAlign: 'center', textDecoration: 'none', fontSize: 13 } as React.CSSProperties}
+                >
+                  ✉ Reply via Email
+                </a>
+              </div>
             </div>
           )}
         </div>
@@ -777,7 +1018,72 @@ function EnquiriesViewer() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Enquiries-specific styles ────────────────────────────────────────────────
+
+const enqCss: Record<string, React.CSSProperties> = {
+  filterTabs: { display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' },
+  filterTab: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '6px 14px', borderRadius: 8,
+    border: '1px solid #e5e7eb', background: '#fff',
+    cursor: 'pointer', fontSize: 13, color: '#6b7280',
+    fontWeight: 500, transition: 'all 0.15s',
+  },
+  filterTabActive: { background: '#111', color: '#fff', borderColor: '#111' },
+  filterTabCount: {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    minWidth: 20, height: 18, borderRadius: 9,
+    fontSize: 11, fontWeight: 700, padding: '0 5px',
+  },
+  searchBar: { display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' },
+  searchWrap: {
+    flex: 1, minWidth: 200,
+    display: 'flex', alignItems: 'center', gap: 8,
+    border: '1px solid #d1d5db', borderRadius: 8,
+    padding: '0 12px', background: '#fff',
+  },
+  searchIcon: { fontSize: 14, color: '#9ca3af', flexShrink: 0 },
+  searchInput: {
+    flex: 1, border: 'none', outline: 'none',
+    fontSize: 14, padding: '9px 0', background: 'transparent', color: '#111',
+  },
+  clearBtn: {
+    background: 'none', border: 'none', color: '#9ca3af',
+    cursor: 'pointer', fontSize: 13, padding: '2px 4px',
+    flexShrink: 0,
+  },
+  serviceSelect: {
+    padding: '9px 12px', borderRadius: 8,
+    border: '1px solid #d1d5db', fontSize: 14,
+    color: '#374151', background: '#fff', cursor: 'pointer',
+    minWidth: 160,
+  },
+  layout: { display: 'flex', gap: 20, alignItems: 'flex-start' },
+  tableCol: { flex: 1, minWidth: 0 },
+  detailPanel: {
+    width: 340, flexShrink: 0,
+    background: '#fff', borderRadius: 12,
+    border: '1px solid #e5e7eb', padding: 20,
+    position: 'sticky', top: 20,
+    maxHeight: 'calc(100vh - 60px)', overflowY: 'auto',
+  },
+  detailHeader: {
+    display: 'flex', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 16,
+    paddingBottom: 12, borderBottom: '1px solid #f3f4f6',
+  },
+  statusSection: { marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #f3f4f6' },
+  statusLabel: { fontSize: 10, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 8px' },
+  statusButtons: { display: 'flex', flexWrap: 'wrap', gap: 6 },
+  notesSection: { marginTop: 16, paddingTop: 16, borderTop: '1px solid #f3f4f6' },
+  editNoteBtn: {
+    background: 'none', border: 'none',
+    color: '#2563eb', fontSize: 12,
+    cursor: 'pointer', padding: 0, fontWeight: 600,
+  },
+};
+
+// ─── Shared styles ────────────────────────────────────────────────────────────
 
 const css: Record<string, React.CSSProperties> = {
   center: { display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' },
@@ -795,7 +1101,7 @@ const css: Record<string, React.CSSProperties> = {
   navBtn: { background: 'transparent', border: 'none', color: '#aaa', textAlign: 'left', padding: '10px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 },
   navBtnActive: { background: '#222', color: '#fff' },
   logoutBtn: { margin: '0 12px', padding: '10px 12px', background: 'transparent', border: '1px solid #333', color: '#888', borderRadius: 8, cursor: 'pointer', fontSize: 13 },
-  main: { flex: 1, padding: '32px 36px', maxWidth: 1100, overflowX: 'auto' },
+  main: { flex: 1, padding: '32px 36px', overflowX: 'auto' },
   pageHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   pageTitle: { fontSize: 24, fontWeight: 700, margin: '0 0 4px' },
   pageSubtitle: { fontSize: 14, color: '#666', margin: 0, maxWidth: 560 },
@@ -834,11 +1140,9 @@ const css: Record<string, React.CSSProperties> = {
   emptyCard: { background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 40, textAlign: 'center' as const },
   emptyMsg: { color: '#9ca3af', fontSize: 14 },
   countBadge: { background: '#f3f4f6', color: '#374151', padding: '6px 14px', borderRadius: 20, fontSize: 14, fontWeight: 600 },
-  detailPanel: { width: 320, background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20, flexShrink: 0, position: 'sticky' as const, top: 20 },
-  detailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, fontSize: 14 },
   closeBtn: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#9ca3af' },
   dl: { margin: 0 },
-  dt: { fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginTop: 12, marginBottom: 2 },
+  dt: { fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase' as const, letterSpacing: '0.08em', marginTop: 12, marginBottom: 3 },
   dd: { margin: 0, fontSize: 14, color: '#111' },
   stepTabs: { display: 'flex', gap: 4, marginBottom: 20 },
   stepTab: { padding: '8px 18px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: 13, color: '#6b7280' },
