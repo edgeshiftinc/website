@@ -670,55 +670,56 @@ function EnquiriesViewer() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Enquiry | null>(null);
   const [error, setError] = useState('');
+  const [actionMsg, setActionMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
-  // ── Search + filter state ──
+  // ── Search + filter ──
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<EnquiryStatus | 'all'>('all');
   const [filterService, setFilterService] = useState<string>('all');
 
-  // ── Detail panel state ──
+  // ── Detail panel ──
   const [editingNotes, setEditingNotes] = useState(false);
   const [noteDraft, setNoteDraft] = useState('');
-  const [statusSaving, setStatusSaving] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
+    setError('');
     fetch('/api/admin/enquiries')
       .then((r) => r.json())
       .then((data) => {
-        if (data.ok) setEnquiries(data.enquiries);
+        if (data.ok) setEnquiries(data.enquiries ?? []);
         else setError(data.message ?? 'Failed to load.');
       })
-      .catch(() => setError('Network error.'))
+      .catch(() => setError('Network error — check your connection.'))
       .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  // ── Derived filtered list ──
+  // ── Derived lists ──
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return enquiries.filter((e) => {
-      if (filterStatus !== 'all' && e.status !== filterStatus) return false;
+      if (filterStatus !== 'all' && (e.status ?? 'unread') !== filterStatus) return false;
       if (filterService !== 'all' && e.service !== filterService) return false;
       if (q) {
-        const haystack = `${e.name} ${e.email} ${e.phone} ${e.service} ${e.message}`.toLowerCase();
-        if (!haystack.includes(q)) return false;
+        const hay = `${e.name} ${e.email} ${e.phone} ${e.service} ${e.message}`.toLowerCase();
+        if (!hay.includes(q)) return false;
       }
       return true;
     });
   }, [enquiries, search, filterStatus, filterService]);
 
-  // ── Status counts for the filter tabs ──
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: enquiries.length };
     for (const e of enquiries) {
-      c[e.status] = (c[e.status] ?? 0) + 1;
+      const s = e.status ?? 'unread';
+      c[s] = (c[s] ?? 0) + 1;
     }
     return c;
   }, [enquiries]);
 
-  // ── Unique services in the dataset for the service filter dropdown ──
   const serviceOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const e of enquiries) if (e.service) seen.add(e.service);
@@ -730,104 +731,136 @@ function EnquiriesViewer() {
     catch { return iso; }
   }
 
-  // When selecting a row, if it's unread mark it read automatically
+  function flashMsg(type: 'ok' | 'err', text: string) {
+    setActionMsg({ type, text });
+    setTimeout(() => setActionMsg(null), 3000);
+  }
+
+  // ── Open detail — auto-mark unread → read ──
   async function selectEnquiry(e: Enquiry) {
-    setSelected(e);
+    setSelected({ ...e });
     setNoteDraft(e.notes ?? '');
     setEditingNotes(false);
-    if (e.status === 'unread') {
-      await patchStatus(e._id, 'read', e.notes);
+    if ((e.status ?? 'unread') === 'unread') {
+      await patchEnquiry(e._id, 'read', e.notes, false);
     }
   }
 
-  async function patchStatus(id: string, status: EnquiryStatus, notes?: string) {
-    setStatusSaving(true);
+  // ── Core PATCH — status + notes ──
+  async function patchEnquiry(
+    id: string,
+    status: EnquiryStatus,
+    notes: string | undefined,
+    showFeedback = true
+  ) {
+    setSaving(true);
     try {
       const res = await fetch('/api/admin/enquiries', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, status, notes }),
       });
-      if (res.ok) {
-        // Update local state without a full reload
+      const data = await res.json();
+      if (data.ok) {
+        // Sync local state immediately — no reload needed
         setEnquiries((prev) =>
-          prev.map((eq) => eq._id === id ? { ...eq, status, notes: notes ?? eq.notes } : eq)
+          prev.map((eq) =>
+            eq._id === id
+              ? { ...eq, status, notes: notes !== undefined ? notes : eq.notes }
+              : eq
+          )
         );
-        setSelected((prev) => prev?._id === id ? { ...prev, status, notes: notes ?? prev.notes } : prev);
+        setSelected((prev) =>
+          prev?._id === id
+            ? { ...prev, status, notes: notes !== undefined ? notes : prev.notes }
+            : prev
+        );
+        if (showFeedback) flashMsg('ok', `Marked as ${STATUS_CONFIG[status].label}`);
+      } else {
+        if (showFeedback) flashMsg('err', data.message ?? 'Update failed.');
       }
+    } catch {
+      if (showFeedback) flashMsg('err', 'Network error.');
     } finally {
-      setStatusSaving(false);
+      setSaving(false);
+    }
+  }
+
+  // ── DELETE ──
+  async function deleteEnquiry(id: string, name: string) {
+    if (!confirm(`Permanently delete the enquiry from "${name}"? This cannot be undone.`)) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/enquiries', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setEnquiries((prev) => prev.filter((eq) => eq._id !== id));
+        if (selected?._id === id) setSelected(null);
+        flashMsg('ok', 'Enquiry deleted.');
+      } else {
+        flashMsg('err', data.message ?? 'Delete failed.');
+      }
+    } catch {
+      flashMsg('err', 'Network error.');
+    } finally {
+      setSaving(false);
     }
   }
 
   async function saveNotes() {
     if (!selected) return;
-    await patchStatus(selected._id, selected.status, noteDraft);
+    await patchEnquiry(selected._id, selected.status ?? 'read', noteDraft, true);
     setEditingNotes(false);
   }
 
   return (
     <div>
-      {/* ── Page header ── */}
+      {/* ── Header ── */}
       <div style={css.pageHeader}>
         <div>
           <h1 style={css.pageTitle}>Enquiries</h1>
-          <p style={css.pageSubtitle}>All contact form submissions — search, filter, and manage status.</p>
+          <p style={css.pageSubtitle}>Search, filter, update status, and manage all contact form submissions.</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <span style={css.countBadge}>{enquiries.length} total</span>
-          <button onClick={load} style={css.btnSecondary} title="Refresh">↻ Refresh</button>
+          <button onClick={load} disabled={loading} style={css.btnSecondary}>↻ Refresh</button>
         </div>
       </div>
 
-      {error && <div style={css.alertErr}>{error}</div>}
+      {error      && <div style={css.alertErr}>{error}</div>}
+      {actionMsg  && <div style={actionMsg.type === 'ok' ? css.alertOk : css.alertErr}>{actionMsg.text}</div>}
 
       {/* ── Status filter tabs ── */}
       <div style={enqCss.filterTabs}>
         {(['all', 'unread', 'read', 'replied', 'review', 'archived'] as const).map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilterStatus(s)}
-            style={{
-              ...enqCss.filterTab,
-              ...(filterStatus === s ? enqCss.filterTabActive : {}),
-            }}
-          >
+          <button key={s} onClick={() => setFilterStatus(s)} style={{ ...enqCss.filterTab, ...(filterStatus === s ? enqCss.filterTabActive : {}) }}>
             {s === 'all' ? 'All' : STATUS_CONFIG[s].label}
-            <span style={{
-              ...enqCss.filterTabCount,
-              background: filterStatus === s ? '#111' : '#f3f4f6',
-              color: filterStatus === s ? '#fff' : '#6b7280',
-            }}>
+            <span style={{ ...enqCss.filterTabCount, background: filterStatus === s ? '#555' : '#f3f4f6', color: filterStatus === s ? '#fff' : '#6b7280' }}>
               {counts[s] ?? 0}
             </span>
           </button>
         ))}
       </div>
 
-      {/* ── Search + service filter bar ── */}
+      {/* ── Search + service filter ── */}
       <div style={enqCss.searchBar}>
         <div style={enqCss.searchWrap}>
-          <span style={enqCss.searchIcon}>🔍</span>
+          <span style={{ fontSize: 14, color: '#9ca3af', flexShrink: 0 }}>🔍</span>
           <input
             style={enqCss.searchInput}
-            placeholder="Search by name, email, message…"
+            placeholder="Search by name, email, phone, service, message…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          {search && (
-            <button onClick={() => setSearch('')} style={enqCss.clearBtn}>✕</button>
-          )}
+          {search && <button onClick={() => setSearch('')} style={enqCss.clearBtn}>✕</button>}
         </div>
-        <select
-          style={enqCss.serviceSelect}
-          value={filterService}
-          onChange={(e) => setFilterService(e.target.value)}
-        >
+        <select style={enqCss.serviceSelect} value={filterService} onChange={(e) => setFilterService(e.target.value)}>
           <option value="all">All services</option>
-          {serviceOptions.map((s) => (
-            <option key={s} value={s}>{s || '(no service)'}</option>
-          ))}
+          {serviceOptions.map((s) => <option key={s} value={s}>{s || '(no service)'}</option>)}
         </select>
       </div>
 
@@ -837,11 +870,12 @@ function EnquiriesViewer() {
         <div style={css.emptyCard}><p style={css.emptyMsg}>No enquiries yet.</p></div>
       ) : (
         <div style={enqCss.layout}>
+
           {/* ── Table ── */}
           <div style={enqCss.tableCol}>
             {filtered.length === 0 ? (
               <div style={{ ...css.emptyCard, marginTop: 0 }}>
-                <p style={css.emptyMsg}>No enquiries match your filters.</p>
+                <p style={css.emptyMsg}>No enquiries match your current filters.</p>
               </div>
             ) : (
               <div style={css.tableWrap}>
@@ -852,46 +886,62 @@ function EnquiriesViewer() {
                     <th style={css.th}>Email</th>
                     <th style={css.th}>Service</th>
                     <th style={css.th}>Date</th>
+                    <th style={css.th}>Actions</th>
                   </tr></thead>
                   <tbody>
                     {filtered.map((e) => {
-                      const sc = STATUS_CONFIG[e.status ?? 'unread'];
+                      const st = e.status ?? 'unread';
+                      const sc = STATUS_CONFIG[st];
                       const isSelected = selected?._id === e._id;
                       return (
-                        <tr
-                          key={e._id}
-                          style={{
-                            ...css.tr,
-                            background: isSelected ? '#f0f4ff' : undefined,
-                            cursor: 'pointer',
-                            fontWeight: e.status === 'unread' ? 600 : 400,
-                          }}
-                          onClick={() => selectEnquiry(e)}
-                        >
-                          <td style={css.td}>
-                            <span style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
-                              borderRadius: 12,
-                              fontSize: 11,
-                              fontWeight: 600,
-                              background: sc.bg,
-                              color: sc.color,
-                              border: `1px solid ${sc.border}`,
-                              whiteSpace: 'nowrap' as const,
-                            }}>
+                        <tr key={e._id} style={{ ...css.tr, background: isSelected ? '#f0f4ff' : undefined, cursor: 'pointer' }}>
+                          {/* Status pill */}
+                          <td style={css.td} onClick={() => selectEnquiry(e)}>
+                            <span style={{ display: 'inline-block', padding: '3px 9px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, whiteSpace: 'nowrap' as const }}>
                               {sc.label}
                             </span>
                           </td>
-                          <td style={css.td}>
-                            {e.status === 'unread' && (
-                              <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#2563eb', marginRight: 6, verticalAlign: 'middle' }} />
-                            )}
+                          {/* Name — bold if unread */}
+                          <td style={{ ...css.td, fontWeight: st === 'unread' ? 700 : 400 }} onClick={() => selectEnquiry(e)}>
+                            {st === 'unread' && <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#2563eb', marginRight: 6, verticalAlign: 'middle' }} />}
                             {e.name}
                           </td>
-                          <td style={css.td}><span style={css.subText}>{e.email}</span></td>
-                          <td style={css.td}><span style={css.badge}>{e.service || '—'}</span></td>
-                          <td style={css.td}><span style={css.subText}>{fmtDate(e.createdAt)}</span></td>
+                          <td style={css.td} onClick={() => selectEnquiry(e)}><span style={css.subText}>{e.email}</span></td>
+                          <td style={css.td} onClick={() => selectEnquiry(e)}><span style={css.badge}>{e.service || '—'}</span></td>
+                          <td style={css.td} onClick={() => selectEnquiry(e)}><span style={css.subText}>{fmtDate(e.createdAt)}</span></td>
+                          {/* Inline action buttons — visible without opening panel */}
+                          <td style={css.td}>
+                            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                              {st !== 'read' && (
+                                <button disabled={saving} title="Mark as Read" onClick={() => patchEnquiry(e._id, 'read', e.notes)} style={enqCss.actionBtn}>
+                                  ✓ Read
+                                </button>
+                              )}
+                              {st !== 'replied' && (
+                                <button disabled={saving} title="Mark as Replied" onClick={() => patchEnquiry(e._id, 'replied', e.notes)} style={enqCss.actionBtnGreen}>
+                                  ↩ Replied
+                                </button>
+                              )}
+                              {st !== 'review' && (
+                                <button disabled={saving} title="Flag for Review" onClick={() => patchEnquiry(e._id, 'review', e.notes)} style={enqCss.actionBtnYellow}>
+                                  ⚑ Review
+                                </button>
+                              )}
+                              {st !== 'archived' && (
+                                <button disabled={saving} title="Archive" onClick={() => patchEnquiry(e._id, 'archived', e.notes)} style={enqCss.actionBtnGray}>
+                                  ⬇ Archive
+                                </button>
+                              )}
+                              {st === 'archived' && (
+                                <button disabled={saving} title="Unarchive (mark as Read)" onClick={() => patchEnquiry(e._id, 'read', e.notes)} style={enqCss.actionBtn}>
+                                  ↑ Unarchive
+                                </button>
+                              )}
+                              <button disabled={saving} title="Delete permanently" onClick={() => deleteEnquiry(e._id, e.name)} style={enqCss.actionBtnRed}>
+                                🗑
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}
@@ -909,66 +959,61 @@ function EnquiriesViewer() {
                 <button onClick={() => setSelected(null)} style={css.closeBtn}>✕</button>
               </div>
 
-              {/* Status changer */}
-              <div style={enqCss.statusSection}>
-                <p style={enqCss.statusLabel}>STATUS</p>
-                <div style={enqCss.statusButtons}>
-                  {(['unread', 'read', 'replied', 'review', 'archived'] as EnquiryStatus[]).map((s) => {
-                    const sc = STATUS_CONFIG[s];
-                    const isActive = selected.status === s;
-                    return (
-                      <button
-                        key={s}
-                        disabled={statusSaving}
-                        onClick={() => patchStatus(selected._id, s, selected.notes)}
-                        style={{
-                          padding: '4px 10px',
-                          borderRadius: 12,
-                          fontSize: 11,
-                          fontWeight: isActive ? 700 : 500,
-                          border: `1px solid ${isActive ? sc.color : sc.border}`,
-                          background: isActive ? sc.bg : '#fff',
-                          color: isActive ? sc.color : '#9ca3af',
-                          cursor: statusSaving ? 'not-allowed' : 'pointer',
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        {sc.label}
-                      </button>
-                    );
-                  })}
+              {/* ── Current status badge ── */}
+              {(() => {
+                const st = selected.status ?? 'unread';
+                const sc = STATUS_CONFIG[st];
+                return (
+                  <div style={{ marginBottom: 16 }}>
+                    <p style={enqCss.sectionLabel}>CURRENT STATUS</p>
+                    <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: 12, fontSize: 12, fontWeight: 700, background: sc.bg, color: sc.color, border: `1px solid ${sc.border}` }}>
+                      {sc.label}
+                    </span>
+                  </div>
+                );
+              })()}
+
+              {/* ── Change status actions ── */}
+              <div style={enqCss.actionsBlock}>
+                <p style={enqCss.sectionLabel}>CHANGE STATUS</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <button disabled={saving || selected.status === 'read'} onClick={() => patchEnquiry(selected._id, 'read', selected.notes)} style={{ ...enqCss.fullActionBtn, opacity: selected.status === 'read' ? 0.4 : 1 }}>
+                    ✓ Mark as Read
+                  </button>
+                  <button disabled={saving || selected.status === 'replied'} onClick={() => patchEnquiry(selected._id, 'replied', selected.notes)} style={{ ...enqCss.fullActionBtnGreen, opacity: selected.status === 'replied' ? 0.4 : 1 }}>
+                    ↩ Mark as Replied
+                  </button>
+                  <button disabled={saving || selected.status === 'review'} onClick={() => patchEnquiry(selected._id, 'review', selected.notes)} style={{ ...enqCss.fullActionBtnYellow, opacity: selected.status === 'review' ? 0.4 : 1 }}>
+                    ⚑ Flag for Review
+                  </button>
+                  <button disabled={saving || selected.status === 'archived'} onClick={() => patchEnquiry(selected._id, 'archived', selected.notes)} style={{ ...enqCss.fullActionBtnGray, opacity: selected.status === 'archived' ? 0.4 : 1 }}>
+                    ⬇ Archive
+                  </button>
                 </div>
               </div>
 
-              {/* Fields */}
-              <dl style={css.dl}>
+              {/* ── Contact info ── */}
+              <dl style={{ ...css.dl, marginTop: 16 }}>
                 <dt style={css.dt}>Name</dt>
                 <dd style={css.dd}>{selected.name}</dd>
-
                 <dt style={css.dt}>Email</dt>
-                <dd style={css.dd}>
-                  <a href={`mailto:${selected.email}`} style={{ color: '#2563eb' }}>{selected.email}</a>
-                </dd>
-
+                <dd style={css.dd}><a href={`mailto:${selected.email}`} style={{ color: '#2563eb' }}>{selected.email}</a></dd>
                 <dt style={css.dt}>Phone</dt>
                 <dd style={css.dd}>{selected.phone || '—'}</dd>
-
                 <dt style={css.dt}>Service Interest</dt>
                 <dd style={css.dd}>{selected.service || '—'}</dd>
-
                 <dt style={css.dt}>Received</dt>
                 <dd style={css.dd}>{fmtDate(selected.createdAt)}</dd>
-
                 <dt style={css.dt}>Message</dt>
-                <dd style={{ ...css.dd, whiteSpace: 'pre-wrap', lineHeight: 1.6, marginTop: 4, padding: '10px 12px', background: '#f9fafb', borderRadius: 6, border: '1px solid #f3f4f6' }}>
+                <dd style={{ ...css.dd, whiteSpace: 'pre-wrap', lineHeight: 1.6, marginTop: 4, padding: '10px 12px', background: '#f9fafb', borderRadius: 6, border: '1px solid #f3f4f6', fontSize: 13 }}>
                   {selected.message}
                 </dd>
               </dl>
 
-              {/* Internal notes */}
-              <div style={enqCss.notesSection}>
+              {/* ── Notes ── */}
+              <div style={enqCss.notesBlock}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <p style={enqCss.statusLabel}>INTERNAL NOTES</p>
+                  <p style={enqCss.sectionLabel}>INTERNAL NOTES</p>
                   {!editingNotes && (
                     <button onClick={() => { setNoteDraft(selected.notes ?? ''); setEditingNotes(true); }} style={enqCss.editNoteBtn}>
                       {selected.notes ? 'Edit' : '+ Add note'}
@@ -978,19 +1023,17 @@ function EnquiriesViewer() {
                 {editingNotes ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <textarea
-                      style={{ ...css.input, minHeight: 80, resize: 'vertical', fontSize: 13 }}
+                      style={{ ...css.input, minHeight: 80, resize: 'vertical' as const, fontSize: 13 }}
                       value={noteDraft}
                       onChange={(e) => setNoteDraft(e.target.value)}
-                      placeholder="Add internal notes about this enquiry…"
+                      placeholder="Private notes about this enquiry…"
                       autoFocus
                     />
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={saveNotes} disabled={statusSaving} style={{ ...css.btnPrimary, fontSize: 12, padding: '6px 14px' }}>
-                        {statusSaving ? 'Saving…' : 'Save Note'}
+                      <button onClick={saveNotes} disabled={saving} style={{ ...css.btnPrimary, fontSize: 12, padding: '6px 14px' }}>
+                        {saving ? 'Saving…' : 'Save Note'}
                       </button>
-                      <button onClick={() => setEditingNotes(false)} style={{ ...css.btnSecondary, fontSize: 12, padding: '6px 14px' }}>
-                        Cancel
-                      </button>
+                      <button onClick={() => setEditingNotes(false)} style={{ ...css.btnSecondary, fontSize: 12, padding: '6px 14px' }}>Cancel</button>
                     </div>
                   </div>
                 ) : (
@@ -1000,15 +1043,22 @@ function EnquiriesViewer() {
                 )}
               </div>
 
-              {/* Quick reply shortcut */}
-              <div style={{ marginTop: 16 }}>
+              {/* ── Quick actions ── */}
+              <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <a
                   href={`mailto:${selected.email}?subject=Re: Your Enquiry — Edgeshift Inc`}
-                  onClick={() => patchStatus(selected._id, 'replied', selected.notes)}
+                  onClick={() => patchEnquiry(selected._id, 'replied', selected.notes, false)}
                   style={{ ...css.btnPrimary, display: 'block', textAlign: 'center', textDecoration: 'none', fontSize: 13 } as React.CSSProperties}
                 >
                   ✉ Reply via Email
                 </a>
+                <button
+                  disabled={saving}
+                  onClick={() => deleteEnquiry(selected._id, selected.name)}
+                  style={{ ...enqCss.fullActionBtnRed }}
+                >
+                  🗑 Delete Permanently
+                </button>
               </div>
             </div>
           )}
@@ -1021,66 +1071,35 @@ function EnquiriesViewer() {
 // ─── Enquiries-specific styles ────────────────────────────────────────────────
 
 const enqCss: Record<string, React.CSSProperties> = {
-  filterTabs: { display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' },
-  filterTab: {
-    display: 'flex', alignItems: 'center', gap: 6,
-    padding: '6px 14px', borderRadius: 8,
-    border: '1px solid #e5e7eb', background: '#fff',
-    cursor: 'pointer', fontSize: 13, color: '#6b7280',
-    fontWeight: 500, transition: 'all 0.15s',
-  },
+  filterTabs: { display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' as const },
+  filterTab: { display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: 13, color: '#6b7280', fontWeight: 500 },
   filterTabActive: { background: '#111', color: '#fff', borderColor: '#111' },
-  filterTabCount: {
-    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    minWidth: 20, height: 18, borderRadius: 9,
-    fontSize: 11, fontWeight: 700, padding: '0 5px',
-  },
-  searchBar: { display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' },
-  searchWrap: {
-    flex: 1, minWidth: 200,
-    display: 'flex', alignItems: 'center', gap: 8,
-    border: '1px solid #d1d5db', borderRadius: 8,
-    padding: '0 12px', background: '#fff',
-  },
-  searchIcon: { fontSize: 14, color: '#9ca3af', flexShrink: 0 },
-  searchInput: {
-    flex: 1, border: 'none', outline: 'none',
-    fontSize: 14, padding: '9px 0', background: 'transparent', color: '#111',
-  },
-  clearBtn: {
-    background: 'none', border: 'none', color: '#9ca3af',
-    cursor: 'pointer', fontSize: 13, padding: '2px 4px',
-    flexShrink: 0,
-  },
-  serviceSelect: {
-    padding: '9px 12px', borderRadius: 8,
-    border: '1px solid #d1d5db', fontSize: 14,
-    color: '#374151', background: '#fff', cursor: 'pointer',
-    minWidth: 160,
-  },
+  filterTabCount: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 20, height: 18, borderRadius: 9, fontSize: 11, fontWeight: 700, padding: '0 5px' },
+  searchBar: { display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' as const },
+  searchWrap: { flex: 1, minWidth: 200, display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #d1d5db', borderRadius: 8, padding: '0 12px', background: '#fff' },
+  searchInput: { flex: 1, border: 'none', outline: 'none', fontSize: 14, padding: '9px 0', background: 'transparent', color: '#111' },
+  clearBtn: { background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: 13, padding: '2px 4px', flexShrink: 0 },
+  serviceSelect: { padding: '9px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14, color: '#374151', background: '#fff', cursor: 'pointer', minWidth: 160 },
   layout: { display: 'flex', gap: 20, alignItems: 'flex-start' },
-  tableCol: { flex: 1, minWidth: 0 },
-  detailPanel: {
-    width: 340, flexShrink: 0,
-    background: '#fff', borderRadius: 12,
-    border: '1px solid #e5e7eb', padding: 20,
-    position: 'sticky', top: 20,
-    maxHeight: 'calc(100vh - 60px)', overflowY: 'auto',
-  },
-  detailHeader: {
-    display: 'flex', justifyContent: 'space-between',
-    alignItems: 'center', marginBottom: 16,
-    paddingBottom: 12, borderBottom: '1px solid #f3f4f6',
-  },
-  statusSection: { marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid #f3f4f6' },
-  statusLabel: { fontSize: 10, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase', margin: '0 0 8px' },
-  statusButtons: { display: 'flex', flexWrap: 'wrap', gap: 6 },
-  notesSection: { marginTop: 16, paddingTop: 16, borderTop: '1px solid #f3f4f6' },
-  editNoteBtn: {
-    background: 'none', border: 'none',
-    color: '#2563eb', fontSize: 12,
-    cursor: 'pointer', padding: 0, fontWeight: 600,
-  },
+  tableCol: { flex: 1, minWidth: 0, overflowX: 'auto' as const },
+  detailPanel: { width: 320, flexShrink: 0, background: '#fff', borderRadius: 12, border: '1px solid #e5e7eb', padding: 20, position: 'sticky' as const, top: 20, maxHeight: 'calc(100vh - 60px)', overflowY: 'auto' as const },
+  detailHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingBottom: 12, borderBottom: '1px solid #f3f4f6' },
+  sectionLabel: { fontSize: 10, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.08em', textTransform: 'uppercase' as const, margin: '0 0 8px' },
+  actionsBlock: { padding: '14px 0', borderTop: '1px solid #f3f4f6', borderBottom: '1px solid #f3f4f6', marginBottom: 4 },
+  notesBlock: { marginTop: 16, paddingTop: 16, borderTop: '1px solid #f3f4f6' },
+  editNoteBtn: { background: 'none', border: 'none', color: '#2563eb', fontSize: 12, cursor: 'pointer', padding: 0, fontWeight: 600 },
+  // Inline table action buttons
+  actionBtn:       { padding: '3px 8px', borderRadius: 5, fontSize: 11, fontWeight: 600, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', whiteSpace: 'nowrap' as const },
+  actionBtnGreen:  { padding: '3px 8px', borderRadius: 5, fontSize: 11, fontWeight: 600, border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#15803d', cursor: 'pointer', whiteSpace: 'nowrap' as const },
+  actionBtnYellow: { padding: '3px 8px', borderRadius: 5, fontSize: 11, fontWeight: 600, border: '1px solid #fde68a', background: '#fffbeb', color: '#b45309', cursor: 'pointer', whiteSpace: 'nowrap' as const },
+  actionBtnGray:   { padding: '3px 8px', borderRadius: 5, fontSize: 11, fontWeight: 600, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#6b7280', cursor: 'pointer', whiteSpace: 'nowrap' as const },
+  actionBtnRed:    { padding: '3px 8px', borderRadius: 5, fontSize: 11, fontWeight: 600, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', whiteSpace: 'nowrap' as const },
+  // Full-width panel action buttons
+  fullActionBtn:       { width: '100%', padding: '9px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600, border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', cursor: 'pointer', textAlign: 'left' as const },
+  fullActionBtnGreen:  { width: '100%', padding: '9px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600, border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#15803d', cursor: 'pointer', textAlign: 'left' as const },
+  fullActionBtnYellow: { width: '100%', padding: '9px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600, border: '1px solid #fde68a', background: '#fffbeb', color: '#b45309', cursor: 'pointer', textAlign: 'left' as const },
+  fullActionBtnGray:   { width: '100%', padding: '9px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#6b7280', cursor: 'pointer', textAlign: 'left' as const },
+  fullActionBtnRed:    { width: '100%', padding: '9px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', textAlign: 'left' as const },
 };
 
 // ─── Shared styles ────────────────────────────────────────────────────────────
