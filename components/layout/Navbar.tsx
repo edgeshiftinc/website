@@ -51,7 +51,7 @@ export default function Navbar() {
           />
           <span className={styles.logoEdge}>Edge</span>
           <span className={styles.logoShift}>shift</span>
-          <span className={styles.logoTag}>&nbsp;Inc</span>
+          <span className={styles.logoTag}>Inc</span>
         </a>
 
         {/* Desktop links */}
