@@ -32,7 +32,7 @@
 
 /* ── Logo ────────────────────────────────────────── */
 .logo {
-  display: flex; align-items: center; gap: 0;
+  display: flex; align-items: baseline; gap: 0;
   text-decoration: none;
 }
 .logoImg {
@@ -50,6 +50,7 @@
   color: var(--orange);
   letter-spacing: 0px;
   font-style: normal;
+  line-height: 1;
 }
 .logoShift {
   font-family: var(--font-lora), 'Lora', serif;
@@ -58,6 +59,7 @@
   color: var(--white);
   letter-spacing: 0px;
   font-style: normal;
+  line-height: 1;
 }
 .logoTag {
   font-family: var(--font-lora), 'Lora', serif;
@@ -66,9 +68,11 @@
   color: var(--text-mid);
   letter-spacing: 0.3px;
   font-style: normal;
-  margin-left: 2px;
-  align-self: center;
-  padding-bottom: 0px;
+  margin-left: 1px;
+  line-height: 1;
+  vertical-align: middle;
+  position: relative;
+  top: 0;
 }
 
 /* ── Desktop links ───────────────────────────────── */
