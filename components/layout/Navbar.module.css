@@ -42,33 +42,33 @@
   margin-right: 10px;
   border-radius: 4px;
 }
-/* Logo uses Lora (serif) for a distinguished, premium feel distinct from the display headings */
+/* Logo uses Lora (serif) non-italic — clean, classic, premium */
 .logoEdge  {
   font-family: var(--font-lora), 'Lora', serif;
   font-size: 19px;
   font-weight: 700;
   color: var(--orange);
   letter-spacing: 0px;
-  font-style: italic;
+  font-style: normal;
 }
 .logoShift {
   font-family: var(--font-lora), 'Lora', serif;
   font-size: 19px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--white);
   letter-spacing: 0px;
-  font-style: italic;
+  font-style: normal;
 }
 .logoTag {
   font-family: var(--font-lora), 'Lora', serif;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
+  color: var(--text-mid);
+  letter-spacing: 0.3px;
   font-style: normal;
-  margin-left: 3px;   /* tight — visually attached to "Edgeshift", not floating away */
-  align-self: flex-end;
-  padding-bottom: 2px;
+  margin-left: 4px;
+  align-self: center;
+  padding-bottom: 0px;
 }
 
 /* ── Desktop links ───────────────────────────────── */
