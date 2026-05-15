@@ -32,7 +32,7 @@
 
 /* ── Logo ────────────────────────────────────────── */
 .logo {
-  display: flex; align-items: baseline; gap: 0;
+  display: flex; align-items: center; gap: 0;
   text-decoration: none;
 }
 .logoImg {
@@ -50,6 +50,7 @@
   color: var(--orange);
   letter-spacing: 0px;
   font-style: normal;
+  vertical-align: middle;
   line-height: 1;
 }
 .logoShift {
@@ -59,6 +60,7 @@
   color: var(--white);
   letter-spacing: 0px;
   font-style: normal;
+  vertical-align: middle;
   line-height: 1;
 }
 .logoTag {
@@ -68,11 +70,9 @@
   color: var(--text-mid);
   letter-spacing: 0.3px;
   font-style: normal;
-  margin-left: 1px;
-  line-height: 1;
   vertical-align: middle;
-  position: relative;
-  top: 0;
+  line-height: 1;
+  margin-left: 5px;  /* clean gap between "shift" and "Inc" */
 }
 
 /* ── Desktop links ───────────────────────────────── */
