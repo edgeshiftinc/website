@@ -3,6 +3,8 @@ import { connectionToDatabase } from './db';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+export type EnquiryStatus = 'unread' | 'read' | 'replied' | 'review' | 'archived';
+
 export interface ContactQuery {
   _id?: ObjectId;
   name: string;
@@ -12,6 +14,8 @@ export interface ContactQuery {
   message: string;
   ipAddress: string;
   createdAt: Date;
+  status: EnquiryStatus;  // default 'unread' on insert
+  notes?: string;         // internal admin notes
 }
 
 export interface ServiceDoc {
@@ -78,6 +82,27 @@ export async function saveContactQuery(
     return result.insertedId;
   } catch (err) {
     console.error('[models] saveContactQuery error:', err);
+    throw err;
+  }
+}
+
+export async function updateContactQueryStatus(
+  id: string,
+  status: EnquiryStatus,
+  notes?: string
+): Promise<boolean> {
+  try {
+    const { db } = await connectionToDatabase();
+    const col = db.collection<ContactQuery>('contact_queries');
+    const update: Record<string, unknown> = { status };
+    if (notes !== undefined) update.notes = notes;
+    const result = await col.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: update }
+    );
+    return result.matchedCount > 0;
+  } catch (err) {
+    console.error('[models] updateContactQueryStatus error:', err);
     throw err;
   }
 }
