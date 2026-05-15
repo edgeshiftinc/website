@@ -45,7 +45,7 @@
 /* Logo uses Lora (serif) non-italic — clean, classic, premium */
 .logoEdge  {
   font-family: var(--font-lora), 'Lora', serif;
-  font-size: 19px;
+  font-size: 23px;
   font-weight: 700;
   color: var(--orange);
   letter-spacing: 0px;
@@ -53,7 +53,7 @@
 }
 .logoShift {
   font-family: var(--font-lora), 'Lora', serif;
-  font-size: 19px;
+  font-size: 23px;
   font-weight: 500;
   color: var(--white);
   letter-spacing: 0px;
@@ -61,7 +61,7 @@
 }
 .logoTag {
   font-family: var(--font-lora), 'Lora', serif;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 400;
   color: var(--text-mid);
   letter-spacing: 0.3px;
