@@ -73,12 +73,18 @@ export interface ProductSection {
 // ── Contact helpers ───────────────────────────────────────────────────────────
 
 export async function saveContactQuery(
-  data: Omit<ContactQuery, '_id' | 'createdAt'>
+  // status and notes are admin-only fields — excluded from public form input.
+  // status always defaults to 'unread' on insert.
+  data: Omit<ContactQuery, '_id' | 'createdAt' | 'status' | 'notes'>
 ): Promise<ObjectId | null> {
   try {
     const { db } = await connectionToDatabase();
     const col = db.collection<ContactQuery>('contact_queries');
-    const result = await col.insertOne({ ...data, createdAt: new Date() });
+    const result = await col.insertOne({
+      ...data,
+      status: 'unread',
+      createdAt: new Date(),
+    });
     return result.insertedId;
   } catch (err) {
     console.error('[models] saveContactQuery error:', err);
@@ -88,14 +94,16 @@ export async function saveContactQuery(
 
 export async function updateContactQueryStatus(
   id: string,
-  status: EnquiryStatus,
+  status: EnquiryStatus | undefined,
   notes?: string
 ): Promise<boolean> {
   try {
     const { db } = await connectionToDatabase();
     const col = db.collection<ContactQuery>('contact_queries');
-    const update: Record<string, unknown> = { status };
+    const update: Record<string, unknown> = {};
+    if (status !== undefined) update.status = status;
     if (notes !== undefined) update.notes = notes;
+    if (Object.keys(update).length === 0) return true; // nothing to update
     const result = await col.updateOne(
       { _id: new ObjectId(id) },
       { $set: update }
@@ -114,6 +122,18 @@ export async function getContactQueries(limit = 100): Promise<WithId<ContactQuer
     return col.find({}).sort({ createdAt: -1 }).limit(limit).toArray();
   } catch (err) {
     console.error('[models] getContactQueries error:', err);
+    throw err;
+  }
+}
+
+export async function deleteContactQuery(id: string): Promise<boolean> {
+  try {
+    const { db } = await connectionToDatabase();
+    const col = db.collection<ContactQuery>('contact_queries');
+    const result = await col.deleteOne({ _id: new ObjectId(id) });
+    return result.deletedCount > 0;
+  } catch (err) {
+    console.error('[models] deleteContactQuery error:', err);
     throw err;
   }
 }
