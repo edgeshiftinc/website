@@ -86,29 +86,17 @@
 /* Title */
 .title {
   display: block;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
   max-width: 100%;
   width: 100%;
 }
 
-/*
- * Responsive two-line hero title strategy:
- * Line 1: "Your company needs great"   — 4 words, longest line
- * Line 2: "software solutions."        — 2 words
- *
- * We use vw-based font-size so both lines shrink proportionally with viewport.
- * At 1440px → ~88px. At 960px → ~58px. At 480px → ~30px.
- * clamp() sets a floor (28px) so it never gets unreadably tiny.
- * word-break and hyphens are disabled — no splitting allowed.
- * white-space is NOT used because that would cause overflow on very small screens;
- * instead we let the 2 lines wrap naturally only at the explicit <span> boundaries.
- */
 .titleLine1 {
   display: block;
   font-family: var(--ff-display);
-  font-size: clamp(28px, 5.8vw, 88px);
+  font-size: clamp(26px, 4.2vw, 68px);
   font-weight: 800;
-  line-height: 1;
+  line-height: 1.05;
   letter-spacing: -1px;
   color: var(--white);
   opacity: 0;
@@ -121,9 +109,9 @@
 .titleLine2 {
   display: block;
   font-family: var(--ff-display);
-  font-size: clamp(28px, 5.8vw, 88px);
+  font-size: clamp(26px, 4.2vw, 68px);
   font-weight: 800;
-  line-height: 1;
+  line-height: 1.05;
   letter-spacing: -1px;
   color: var(--white);
   opacity: 0;
@@ -135,17 +123,16 @@
 
 .titleAccent { color: var(--orange); }
 
+/* titleLine3 — subtitle style, same font family as body, no gradient */
 .titleLine3 {
   display: block;
-  font-family: var(--ff-display);
-  font-size: clamp(18px, 2.8vw, 42px);
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.5px;
-  background: linear-gradient(135deg, var(--orange) 0%, var(--orange-light) 50%, rgba(240,122,26,0.4) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-family: var(--ff-body);
+  font-size: clamp(16px, 1.6vw, 24px);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0px;
+  color: var(--text-mid);
+  margin-top: 16px;
   opacity: 0;
   animation: fadeUp .9s ease .7s forwards;
   word-break: keep-all;
@@ -298,12 +285,13 @@
 @media (max-width: 480px) {
   .titleLine1,
   .titleLine2 {
-    font-size: clamp(26px, 7.5vw, 40px);
+    font-size: clamp(24px, 7vw, 36px);
     letter-spacing: -0.5px;
-    line-height: 1.05;
+    line-height: 1.1;
   }
   .titleLine3 {
-    font-size: clamp(16px, 4.5vw, 24px);
+    font-size: clamp(14px, 4vw, 18px);
+    margin-top: 12px;
   }
   .hero {
     padding: 100px 20px 70px;
