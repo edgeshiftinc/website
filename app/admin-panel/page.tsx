@@ -60,7 +60,17 @@ interface Enquiry {
   notes?: string;
 }
 
-type Tab = 'services' | 'products' | 'enquiries';
+interface TestimonialDoc {
+  _id: string;
+  company: string;
+  industry: string;
+  quote: string;
+  rating: number;
+  order: number;
+  enabled: boolean;
+}
+
+type Tab = 'services' | 'products' | 'enquiries' | 'reviews';
 
 // ─── Empty form states ────────────────────────────────────────────────────────
 
@@ -81,6 +91,10 @@ const EMPTY_PRODUCT_FORM = {
   heroCTAHref: '#contact',
   order: '99',
   enabled: true,
+};
+
+const EMPTY_REVIEW_FORM = {
+  company: '', industry: '', quote: '', rating: '5', order: '99', enabled: true,
 };
 
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -182,6 +196,9 @@ function Dashboard() {
           <button style={{ ...css.navBtn, ...(tab === 'enquiries' ? css.navBtnActive : {}) }} onClick={() => setTab('enquiries')}>
             <span>📩</span> Enquiries
           </button>
+          <button style={{ ...css.navBtn, ...(tab === 'reviews'   ? css.navBtnActive : {}) }} onClick={() => setTab('reviews')}>
+            <span>⭐</span> Reviews
+          </button>
         </nav>
         <button onClick={() => { document.cookie = 'admin_session=; Max-Age=0; path=/'; window.location.reload(); }} style={css.logoutBtn}>
           Sign Out
@@ -191,6 +208,7 @@ function Dashboard() {
         {tab === 'services'  && <ServicesManager />}
         {tab === 'products'  && <ProductsManager />}
         {tab === 'enquiries' && <EnquiriesViewer />}
+        {tab === 'reviews'   && <ReviewsManager />}
       </main>
     </div>
   );
@@ -651,6 +669,207 @@ function ProductsManager() {
                     <div style={css.actionGroup}>
                       <button onClick={() => openEdit(p)} style={css.btnEdit}>Edit</button>
                       <button onClick={() => handleDelete(p._id, p.title)} style={css.btnDelete}>Delete</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Reviews Manager ──────────────────────────────────────────────────────────
+
+function ReviewsManager() {
+  const [reviews, setReviews] = useState<TestimonialDoc[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editTarget, setEditTarget] = useState<TestimonialDoc | null>(null);
+  const [form, setForm] = useState(EMPTY_REVIEW_FORM);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/testimonials');
+      const data = await res.json();
+      if (data.ok) setReviews(data.testimonials ?? []);
+      else setMsg({ type: 'err', text: data.message ?? 'Failed to load.' });
+    } catch { setMsg({ type: 'err', text: 'Network error.' }); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  function openAdd() { setEditTarget(null); setForm(EMPTY_REVIEW_FORM); setShowForm(true); setMsg(null); }
+  function openEdit(r: TestimonialDoc) {
+    setEditTarget(r);
+    setForm({ company: r.company, industry: r.industry, quote: r.quote, rating: String(r.rating ?? 5), order: String(r.order), enabled: r.enabled });
+    setShowForm(true); setMsg(null);
+  }
+  function cancel() { setShowForm(false); setEditTarget(null); setMsg(null); }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setMsg(null);
+    const payload = {
+      ...(editTarget ? { id: editTarget._id } : {}),
+      company: form.company.trim(),
+      industry: form.industry.trim(),
+      quote: form.quote.trim(),
+      rating: parseInt(form.rating, 10) || 5,
+      order: parseInt(form.order, 10) || 99,
+      enabled: form.enabled,
+    };
+    try {
+      const res = await fetch('/api/admin/testimonials', {
+        method: editTarget ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (data.ok) { setMsg({ type: 'ok', text: editTarget ? 'Review updated!' : 'Review added!' }); cancel(); load(); }
+      else setMsg({ type: 'err', text: data.message ?? 'Save failed.' });
+    } catch { setMsg({ type: 'err', text: 'Network error.' }); }
+    finally { setSaving(false); }
+  }
+
+  async function handleDelete(id: string, company: string) {
+    if (!confirm(`Delete the review from "${company}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch('/api/admin/testimonials', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (data.ok) { setMsg({ type: 'ok', text: 'Review deleted.' }); load(); }
+      else setMsg({ type: 'err', text: data.message ?? 'Delete failed.' });
+    } catch { setMsg({ type: 'err', text: 'Network error.' }); }
+  }
+
+  async function handleToggle(r: TestimonialDoc) {
+    try {
+      const res = await fetch('/api/admin/testimonials', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: r._id, enabled: !r.enabled }),
+      });
+      const data = await res.json();
+      if (data.ok) load(); else setMsg({ type: 'err', text: data.message ?? 'Toggle failed.' });
+    } catch { setMsg({ type: 'err', text: 'Network error.' }); }
+  }
+
+  return (
+    <div>
+      <div style={css.pageHeader}>
+        <div>
+          <h1 style={css.pageTitle}>Reviews</h1>
+          <p style={css.pageSubtitle}>Manage client testimonials shown in the Social Proof section. Reviews are pulled from the database — the website falls back to static data if none exist.</p>
+        </div>
+        <button onClick={openAdd} style={css.btnPrimary}>+ Add Review</button>
+      </div>
+
+      {msg && <div style={msg.type === 'ok' ? css.alertOk : css.alertErr}>{msg.text}</div>}
+
+      {showForm && (
+        <div style={css.formCard}>
+          <h2 style={css.formTitle}>{editTarget ? `Editing: ${editTarget.company}` : 'New Review'}</h2>
+          <form onSubmit={handleSave} style={css.formGrid}>
+            <div style={css.formGroup}>
+              <label style={css.label}>Company / Client Name *</label>
+              <input style={css.input} value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} placeholder="e.g. Enterprise Client" required />
+            </div>
+            <div style={css.formGroup}>
+              <label style={css.label}>Industry</label>
+              <input style={css.input} value={form.industry} onChange={(e) => setForm({ ...form, industry: e.target.value })} placeholder="e.g. Financial Services" />
+            </div>
+            <div style={{ ...css.formGroup, gridColumn: '1 / -1' }}>
+              <label style={css.label}>Review / Quote *</label>
+              <textarea style={{ ...css.input, ...css.textareaLg }} value={form.quote} onChange={(e) => setForm({ ...form, quote: e.target.value })} placeholder="The client's testimonial text…" required />
+            </div>
+            <div style={css.formGroup}>
+              <label style={css.label}>Star Rating (1–5)</label>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setForm({ ...form, rating: String(star) })}
+                    style={{
+                      fontSize: 24, background: 'none', border: 'none', cursor: 'pointer',
+                      opacity: parseInt(form.rating) >= star ? 1 : 0.25,
+                      filter: parseInt(form.rating) >= star ? 'none' : 'grayscale(1)',
+                    }}
+                  >⭐</button>
+                ))}
+                <span style={{ fontSize: 13, color: '#6b7280', marginLeft: 4 }}>{form.rating} / 5</span>
+              </div>
+            </div>
+            <div style={css.formGroup}>
+              <label style={css.label}>Display Order</label>
+              <input type="number" style={css.input} value={form.order} onChange={(e) => setForm({ ...form, order: e.target.value })} min="1" />
+            </div>
+            <div style={{ ...css.formGroup, gridColumn: '1 / -1' }}>
+              <label style={css.checkboxLabel}>
+                <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} style={{ marginRight: 8 }} />
+                Visible on website
+              </label>
+            </div>
+            <div style={{ ...css.formActions, gridColumn: '1 / -1' }}>
+              <button type="submit" disabled={saving} style={css.btnPrimary}>{saving ? 'Saving…' : editTarget ? 'Save Changes' : 'Add Review'}</button>
+              <button type="button" onClick={cancel} style={css.btnSecondary}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {loading ? <p style={css.emptyMsg}>Loading…</p> : reviews.length === 0 ? (
+        <div style={css.emptyCard}>
+          <p style={css.emptyMsg}>No reviews in the database yet.</p>
+          <p style={{ ...css.emptyMsg, marginTop: 8, fontSize: 13 }}>The website is currently showing the static fallback reviews. Add reviews here to override them.</p>
+        </div>
+      ) : (
+        <div style={css.tableWrap}>
+          <table style={css.table}>
+            <thead><tr>
+              <th style={css.th}>Company</th>
+              <th style={css.th}>Industry</th>
+              <th style={css.th}>Rating</th>
+              <th style={css.th}>Order</th>
+              <th style={css.th}>Visible</th>
+              <th style={css.th}>Actions</th>
+            </tr></thead>
+            <tbody>
+              {reviews.map((r) => (
+                <tr key={r._id} style={css.tr}>
+                  <td style={css.td}>
+                    <strong>{r.company}</strong>
+                    <br />
+                    <span style={{ ...css.subText, fontStyle: 'italic', maxWidth: 300, display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      "{r.quote.slice(0, 80)}{r.quote.length > 80 ? '…' : ''}"
+                    </span>
+                  </td>
+                  <td style={css.td}><span style={css.badge}>{r.industry || '—'}</span></td>
+                  <td style={css.td}>
+                    <span style={{ color: '#f59e0b', letterSpacing: 1 }}>
+                      {'★'.repeat(r.rating ?? 5)}{'☆'.repeat(5 - (r.rating ?? 5))}
+                    </span>
+                    <span style={{ ...css.subText, marginLeft: 4 }}>{r.rating ?? 5}/5</span>
+                  </td>
+                  <td style={css.td}>{r.order}</td>
+                  <td style={css.td}>
+                    <button onClick={() => handleToggle(r)} style={r.enabled ? css.toggleOn : css.toggleOff}>
+                      {r.enabled ? 'Visible' : 'Hidden'}
+                    </button>
+                  </td>
+                  <td style={css.td}>
+                    <div style={css.actionGroup}>
+                      <button onClick={() => openEdit(r)} style={css.btnEdit}>Edit</button>
+                      <button onClick={() => handleDelete(r._id, r.company)} style={css.btnDelete}>Delete</button>
                     </div>
                   </td>
                 </tr>
