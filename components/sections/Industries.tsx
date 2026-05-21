@@ -14,9 +14,7 @@ export default function Industries() {
         </Reveal>
         <Reveal delay={200}>
           <p className={styles.sub}>
-            Sector-specific services that improve consumer interaction and corporate
-            processes — leveraging the latest technologies to give our clients a
-            measurable competitive edge.
+            Sector-specific services leveraging the latest technologies to give clients a measurable competitive edge.
           </p>
         </Reveal>
       </div>
