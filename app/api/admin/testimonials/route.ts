@@ -16,6 +16,16 @@ function serialize(t: Record<string, unknown>) {
   };
 }
 
+// Safely build a filter that works whether _id is an ObjectId or a plain string
+function buildIdFilter(id: string) {
+  try {
+    return { $or: [{ _id: new ObjectId(id) }, { _id: id as unknown as ObjectId }] };
+  } catch {
+    return { _id: id as unknown as ObjectId };
+  }
+}
+
+// GET — fetch all testimonials (admin sees all including disabled)
 export async function GET(req: NextRequest) {
   if (!isAdminAuthorized(req)) {
     return NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 });
@@ -29,6 +39,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// POST — create new testimonial
 export async function POST(req: NextRequest) {
   if (!isAdminAuthorized(req)) {
     return NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 });
@@ -54,6 +65,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// PUT — update existing testimonial
 export async function PUT(req: NextRequest) {
   if (!isAdminAuthorized(req)) {
     return NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 });
@@ -73,6 +85,7 @@ export async function PUT(req: NextRequest) {
   }
 }
 
+// DELETE
 export async function DELETE(req: NextRequest) {
   if (!isAdminAuthorized(req)) {
     return NextResponse.json({ ok: false, message: 'Unauthorized.' }, { status: 401 });
