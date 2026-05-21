@@ -277,23 +277,22 @@ export async function updateTestimonial(
   data: Partial<Omit<TestimonialDoc, '_id' | 'createdAt'>>
 ): Promise<boolean> {
   const { db } = await connectionToDatabase();
-  // Handle both ObjectId and plain string _id (depending on how docs were seeded)
+  const col = db.collection('testimonials');
   let result;
   try {
-    result = await db.collection<TestimonialDoc>('testimonials').updateOne(
+    result = await col.updateOne(
       { _id: new ObjectId(id) } as object,
       { $set: { ...data, updatedAt: new Date() } }
     );
     if (result.matchedCount === 0) {
-      // Fallback: try as plain string
-      result = await db.collection('testimonials').updateOne(
-        { _id: id },
+      result = await col.updateOne(
+        { _id: id } as object,
         { $set: { ...data, updatedAt: new Date() } }
       );
     }
   } catch {
-    result = await db.collection('testimonials').updateOne(
-      { _id: id },
+    result = await col.updateOne(
+      { _id: id } as object,
       { $set: { ...data, updatedAt: new Date() } }
     );
   }
@@ -302,16 +301,15 @@ export async function updateTestimonial(
 
 export async function deleteTestimonial(id: string): Promise<boolean> {
   const { db } = await connectionToDatabase();
+  const col = db.collection('testimonials');
   let result;
   try {
-    result = await db.collection<TestimonialDoc>('testimonials').deleteOne(
-      { _id: new ObjectId(id) } as object
-    );
+    result = await col.deleteOne({ _id: new ObjectId(id) } as object);
     if (result.deletedCount === 0) {
-      result = await db.collection('testimonials').deleteOne({ _id: id });
+      result = await col.deleteOne({ _id: id } as object);
     }
   } catch {
-    result = await db.collection('testimonials').deleteOne({ _id: id });
+    result = await col.deleteOne({ _id: id } as object);
   }
   return result.deletedCount > 0;
 }
