@@ -221,6 +221,13 @@ export async function updateProduct(
   return result.matchedCount > 0;
 }
 
+export async function deleteProduct(id: string): Promise<boolean> {
+  const { db } = await connectionToDatabase();
+  const result = await db
+    .collection<ProductSection>('products')
+    .deleteOne({ _id: new ObjectId(id) });
+  return result.deletedCount > 0;
+}
 
 // ── Testimonials ──────────────────────────────────────────────────────────────
 
