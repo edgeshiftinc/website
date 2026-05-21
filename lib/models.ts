@@ -221,10 +221,66 @@ export async function updateProduct(
   return result.matchedCount > 0;
 }
 
-export async function deleteProduct(id: string): Promise<boolean> {
+
+// ── Testimonials ──────────────────────────────────────────────────────────────
+
+export interface TestimonialDoc {
+  _id?: ObjectId;
+  company: string;
+  industry: string;
+  quote: string;
+  rating: number;    // 1–5
+  order: number;
+  enabled: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export async function getAllTestimonials(): Promise<WithId<TestimonialDoc>[]> {
+  const { db } = await connectionToDatabase();
+  return db
+    .collection<TestimonialDoc>('testimonials')
+    .find({})
+    .sort({ order: 1 })
+    .toArray();
+}
+
+export async function getEnabledTestimonials(): Promise<WithId<TestimonialDoc>[]> {
+  const { db } = await connectionToDatabase();
+  return db
+    .collection<TestimonialDoc>('testimonials')
+    .find({ enabled: true })
+    .sort({ order: 1 })
+    .toArray();
+}
+
+export async function createTestimonial(
+  data: Omit<TestimonialDoc, '_id' | 'createdAt' | 'updatedAt'>
+): Promise<ObjectId> {
+  const { db } = await connectionToDatabase();
+  const now = new Date();
+  const result = await db
+    .collection<TestimonialDoc>('testimonials')
+    .insertOne({ ...data, createdAt: now, updatedAt: now });
+  return result.insertedId;
+}
+
+export async function updateTestimonial(
+  id: string,
+  data: Partial<Omit<TestimonialDoc, '_id' | 'createdAt'>>
+): Promise<boolean> {
+  const { db } = await connectionToDatabase();
+  const result = await db.collection<TestimonialDoc>('testimonials').updateOne(
+    { _id: new ObjectId(id) },
+    { $set: { ...data, updatedAt: new Date() } }
+  );
+  return result.matchedCount > 0;
+}
+
+export async function deleteTestimonial(id: string): Promise<boolean> {
   const { db } = await connectionToDatabase();
   const result = await db
-    .collection<ProductSection>('products')
+    .collection<TestimonialDoc>('testimonials')
     .deleteOne({ _id: new ObjectId(id) });
   return result.deletedCount > 0;
 }
