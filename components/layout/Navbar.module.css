@@ -42,37 +42,38 @@
   margin-right: 10px;
   border-radius: 4px;
 }
-/* Logo uses Lora (serif) non-italic — clean, classic, premium */
+/* Logo matches footer style: Syne display font, cyan Edge, white shift, mono Inc */
 .logoEdge  {
-  font-family: var(--font-lora), 'Lora', serif;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--orange);
-  letter-spacing: 0px;
+  font-family: var(--ff-display);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--cyan);
+  letter-spacing: -1px;
   font-style: normal;
   vertical-align: middle;
   line-height: 1;
 }
 .logoShift {
-  font-family: var(--font-lora), 'Lora', serif;
-  font-size: 22px;
-  font-weight: 500;
+  font-family: var(--ff-display);
+  font-size: 24px;
+  font-weight: 800;
   color: var(--white);
-  letter-spacing: 0px;
+  letter-spacing: -1px;
   font-style: normal;
   vertical-align: middle;
   line-height: 1;
 }
 .logoTag {
-  font-family: var(--font-lora), 'Lora', serif;
-  font-size: 19px;
+  font-family: var(--ff-mono);
+  font-size: 10px;
   font-weight: 400;
-  color: var(--text-mid);
-  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
   font-style: normal;
+  margin-left: 8px;
   vertical-align: middle;
   line-height: 1;
-  margin-left: 5px;  /* clean gap between "shift" and "Inc" */
+  padding-bottom: 2px;
 }
 
 /* ── Desktop links ───────────────────────────────── */
