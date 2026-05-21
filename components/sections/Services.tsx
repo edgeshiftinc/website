@@ -162,8 +162,7 @@ export default async function Services() {
         </div>
         <Reveal delay={200}>
           <p className={styles.headerSub}>
-            AI, Cloud Engineering, DevOps, DBA Support, Network, Security and Observability —
-            come together in one platform and one trusted managed service provider.
+            All services under one platform and one trusted managed service provider.
           </p>
         </Reveal>
       </div>
