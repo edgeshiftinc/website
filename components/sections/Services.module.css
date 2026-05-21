@@ -24,10 +24,10 @@
 .accent { color: var(--cyan); }
 
 .headerSub {
-  font-size: 18px;
+  font-size: 15px;
   color: var(--text-mid);
-  line-height: 1.85;
-  max-width: 420px;
+  line-height: 1.6;
+  max-width: 380px;
 }
 
 /* 3-col card grid */
