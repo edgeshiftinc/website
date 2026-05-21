@@ -64,9 +64,9 @@
   line-height: 1;
 }
 .logoTag {
-  font-family: var(--ff-mono);
-  font-size: 10px;
-  font-weight: 400;
+  font-family: var(--ff-display);
+  font-size: 19px;
+  font-weight: 600;
   color: var(--text-muted);
   letter-spacing: 2px;
   font-style: normal;
