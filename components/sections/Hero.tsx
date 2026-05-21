@@ -68,7 +68,7 @@ export default function Hero() {
       <div className={styles.content}>
         <div className={styles.badge}>
           <span className={styles.badgeDot} aria-hidden="true" />
-          DBA Support · AI Solutions · DevOps · Network & Security · Canada
+          DBA Support · AI Solutions · DevOps · Network & Security
         </div>
 
         <h1 className={styles.title}>
