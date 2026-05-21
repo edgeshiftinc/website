@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ObjectId } from 'mongodb';
 import { isAdminAuthorized } from '@/lib/adminAuth';
 import {
   getAllTestimonials,
@@ -9,21 +8,16 @@ import {
 } from '@/lib/models';
 
 function serialize(t: Record<string, unknown>) {
+  const id = t._id;
+  const idStr = id && typeof id === 'object' && 'toString' in id
+    ? (id as { toString(): string }).toString()
+    : String(id ?? '');
   return {
     ...t,
-    _id: t._id?.toString(),
-    createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : t.createdAt,
-    updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : t.updatedAt,
+    _id: idStr,
+    createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : (t.createdAt ?? null),
+    updatedAt: t.updatedAt instanceof Date ? t.updatedAt.toISOString() : (t.updatedAt ?? null),
   };
-}
-
-// Safely build a filter that works whether _id is an ObjectId or a plain string
-function buildIdFilter(id: string) {
-  try {
-    return { $or: [{ _id: new ObjectId(id) }, { _id: id as unknown as ObjectId }] };
-  } catch {
-    return { _id: id as unknown as ObjectId };
-  }
 }
 
 // GET — fetch all testimonials (admin sees all including disabled)
