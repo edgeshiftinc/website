@@ -694,13 +694,20 @@ function ReviewsManager() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setMsg(null);
     try {
       const res = await fetch('/api/admin/testimonials');
       const data = await res.json();
-      if (data.ok) setReviews(data.testimonials ?? []);
-      else setMsg({ type: 'err', text: data.message ?? 'Failed to load.' });
-    } catch { setMsg({ type: 'err', text: 'Network error.' }); }
-    finally { setLoading(false); }
+      if (data.ok) {
+        setReviews(data.testimonials ?? []);
+      } else {
+        setMsg({ type: 'err', text: `API error: ${data.message ?? 'Failed to load.'} (status ${res.status})` });
+      }
+    } catch (err) {
+      setMsg({ type: 'err', text: `Network error: ${String(err)}` });
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
