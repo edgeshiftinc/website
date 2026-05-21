@@ -20,7 +20,16 @@
 }
 .logoEdge { font-family: var(--ff-display); font-size: 24px; font-weight: 800; color: var(--cyan); letter-spacing: -1px; }
 .logoShift { font-family: var(--ff-display); font-size: 24px; font-weight: 800; color: var(--white); letter-spacing: -1px; }
-.logoTag { font-family: var(--ff-mono); font-size: 10px; color: var(--text-muted); letter-spacing: 2px; margin-left: 8px; padding-bottom: 2px; }
+.logoTag {
+  font-family: var(--ff-display);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--white);
+  letter-spacing: 1px;
+  font-style: normal;
+  vertical-align: middle;
+  line-height: 1;
+}
 
 .tagline {
   font-size: 13px;
