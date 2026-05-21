@@ -32,7 +32,9 @@
 
 .accent { color: var(--cyan); }
 
-.topRight {}
+.topRight {
+  padding-top: 52px; /* pushes past eyebrow line so text aligns with the h2 title */
+}
 
 .body {
   font-size: 18px;
