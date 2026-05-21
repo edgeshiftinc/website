@@ -19,7 +19,7 @@ dns.resolveSrv('_mongodb._tcp.cluster0.zmqcbuo.mongodb.net', (err, records) => {
     }
 
     // Now try MongoDB connection
-    const uri = process.env.MONGODB_URI || 'mongodb+srv://nandeishbaburaj_db_user:nandeishkashish1234@cluster0.zmqcbuo.mongodb.net/?appName=Cluster0';
+    const uri = process.env.MONGODB_URI;
     
     console.log('\nAttempting MongoDB connection...');
     console.log('Connection URI:', uri.split('@')[0] + '@***@' + uri.split('@')[1]);
