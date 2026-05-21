@@ -221,13 +221,6 @@ export async function updateProduct(
   return result.matchedCount > 0;
 }
 
-export async function deleteProduct(id: string): Promise<boolean> {
-  const { db } = await connectionToDatabase();
-  const result = await db
-    .collection<ProductSection>('products')
-    .deleteOne({ _id: new ObjectId(id) });
-  return result.deletedCount > 0;
-}
 
 // ── Testimonials ──────────────────────────────────────────────────────────────
 
@@ -277,17 +270,41 @@ export async function updateTestimonial(
   data: Partial<Omit<TestimonialDoc, '_id' | 'createdAt'>>
 ): Promise<boolean> {
   const { db } = await connectionToDatabase();
-  const result = await db.collection<TestimonialDoc>('testimonials').updateOne(
-    { _id: new ObjectId(id) },
-    { $set: { ...data, updatedAt: new Date() } }
-  );
+  // Handle both ObjectId and plain string _id (depending on how docs were seeded)
+  let result;
+  try {
+    result = await db.collection<TestimonialDoc>('testimonials').updateOne(
+      { _id: new ObjectId(id) } as object,
+      { $set: { ...data, updatedAt: new Date() } }
+    );
+    if (result.matchedCount === 0) {
+      // Fallback: try as plain string
+      result = await db.collection('testimonials').updateOne(
+        { _id: id },
+        { $set: { ...data, updatedAt: new Date() } }
+      );
+    }
+  } catch {
+    result = await db.collection('testimonials').updateOne(
+      { _id: id },
+      { $set: { ...data, updatedAt: new Date() } }
+    );
+  }
   return result.matchedCount > 0;
 }
 
 export async function deleteTestimonial(id: string): Promise<boolean> {
   const { db } = await connectionToDatabase();
-  const result = await db
-    .collection<TestimonialDoc>('testimonials')
-    .deleteOne({ _id: new ObjectId(id) });
+  let result;
+  try {
+    result = await db.collection<TestimonialDoc>('testimonials').deleteOne(
+      { _id: new ObjectId(id) } as object
+    );
+    if (result.deletedCount === 0) {
+      result = await db.collection('testimonials').deleteOne({ _id: id });
+    }
+  } catch {
+    result = await db.collection('testimonials').deleteOne({ _id: id });
+  }
   return result.deletedCount > 0;
 }
