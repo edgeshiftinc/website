@@ -14,8 +14,7 @@ export default function Process() {
         </Reveal>
         <Reveal delay={200}>
           <p className={styles.sub}>
-            A proven four-stage framework that takes you from problem to production —
-            with full transparency and measurable outcomes at every step.
+            From problem to production — full transparency and measurable outcomes at every step.
           </p>
         </Reveal>
       </div>
