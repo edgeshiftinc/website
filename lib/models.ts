@@ -245,20 +245,23 @@ export interface TestimonialDoc {
 
 export async function getAllTestimonials(): Promise<WithId<TestimonialDoc>[]> {
   const { db } = await connectionToDatabase();
-  return db
-    .collection<TestimonialDoc>('testimonials')
+  // Use untyped collection to handle both ObjectId and plain string _id
+  const docs = await db
+    .collection('testimonials')
     .find({})
     .sort({ order: 1 })
     .toArray();
+  return docs as unknown as WithId<TestimonialDoc>[];
 }
 
 export async function getEnabledTestimonials(): Promise<WithId<TestimonialDoc>[]> {
   const { db } = await connectionToDatabase();
-  return db
-    .collection<TestimonialDoc>('testimonials')
+  const docs = await db
+    .collection('testimonials')
     .find({ enabled: true })
     .sort({ order: 1 })
     .toArray();
+  return docs as unknown as WithId<TestimonialDoc>[];
 }
 
 export async function createTestimonial(
