@@ -123,35 +123,6 @@ export const PROCESS_STEPS: ProcessStep[] = [
   },
 ];
 
-export interface Testimonial {
-  company:  string;
-  industry: string;
-  quote:    string;
-}
-
-export const TESTIMONIALS: Testimonial[] = [
-  {
-    company:  'Enterprise Client',
-    industry: 'Financial Services',
-    quote:    'Edgeshift transformed our infrastructure from the ground up. Their DBA and DevOps teams worked seamlessly together, reducing our deployment times by over 60% while significantly improving system reliability. Truly an integrated partner.',
-  },
-  {
-    company:  'Technology Partner',
-    industry: 'Healthcare IT',
-    quote:    'The observability platform Edgeshift delivered gave us visibility we never had before. We caught and resolved three critical issues before they impacted patients. Their proactive approach to managed services is second to none.',
-  },
-  {
-    company:  'Global Enterprise',
-    industry: 'Manufacturing & Logistics',
-    quote:    'From network design to cloud migration and 24/7 service desk, Edgeshift handled our entire IT transformation. One trusted partner instead of six vendors — the difference in communication and accountability has been remarkable.',
-  },
-  {
-    company:  'Scale-Up Client',
-    industry: 'SaaS & Technology',
-    quote:    'Their AI solutions team built a predictive analytics engine that our executives rely on daily. What impressed us most was how they translated complex ML concepts into business outcomes our leadership could immediately understand and act on.',
-  },
-];
-
 export interface Industry {
   icon:  string;
   label: string;
