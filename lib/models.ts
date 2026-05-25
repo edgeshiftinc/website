@@ -281,23 +281,19 @@ export async function updateTestimonial(
 ): Promise<boolean> {
   const { db } = await connectionToDatabase();
   const col = db.collection('testimonials');
+  const update = { $set: { ...data, updatedAt: new Date() } };
+
+  // Try ObjectId first (valid 24-char hex), then plain string
+  const isHex24 = /^[a-f\d]{24}$/i.test(id);
   let result;
-  try {
-    result = await col.updateOne(
-      { _id: new ObjectId(id) } as object,
-      { $set: { ...data, updatedAt: new Date() } }
-    );
+  if (isHex24) {
+    result = await col.updateOne({ _id: new ObjectId(id) } as object, update);
     if (result.matchedCount === 0) {
-      result = await col.updateOne(
-        { _id: id } as object,
-        { $set: { ...data, updatedAt: new Date() } }
-      );
+      // doc was stored with string _id that happens to look like hex
+      result = await col.updateOne({ _id: id } as object, update);
     }
-  } catch {
-    result = await col.updateOne(
-      { _id: id } as object,
-      { $set: { ...data, updatedAt: new Date() } }
-    );
+  } else {
+    result = await col.updateOne({ _id: id } as object, update);
   }
   return result.matchedCount > 0;
 }
@@ -305,13 +301,14 @@ export async function updateTestimonial(
 export async function deleteTestimonial(id: string): Promise<boolean> {
   const { db } = await connectionToDatabase();
   const col = db.collection('testimonials');
+  const isHex24 = /^[a-f\d]{24}$/i.test(id);
   let result;
-  try {
+  if (isHex24) {
     result = await col.deleteOne({ _id: new ObjectId(id) } as object);
     if (result.deletedCount === 0) {
       result = await col.deleteOne({ _id: id } as object);
     }
-  } catch {
+  } else {
     result = await col.deleteOne({ _id: id } as object);
   }
   return result.deletedCount > 0;
